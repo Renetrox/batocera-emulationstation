@@ -265,8 +265,16 @@ void ThreadedScraper::start(Window* window, const std::queue<ScraperSearchParams
 	if (ThreadedScraper::mInstance != nullptr)
 		return;
 
+	auto* scraper = Scraper::getScraper();
+	if (scraper == nullptr)
+	{
+		window->pushGui(new GuiMsgBox(window,
+			_("NO SCRAPER AVAILABLE. PLEASE SELECT AN AVAILABLE SCRAPING DATABASE.")));
+		return;
+	}
+
 	std::string error;
-	int threadCount = Scraper::getScraper()->getThreadCount(error);
+	int threadCount = scraper->getThreadCount(error);
 	if (threadCount < 0)
 	{
 		window->pushGui(new GuiMsgBox(window, _("AN ERROR OCCURRED") + std::string(" :\r\n") + error));
