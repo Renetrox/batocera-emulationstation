@@ -73,7 +73,11 @@ void GuiScraperStart::loadScrapPage()
 	{
 		scraper_list->selectFirstItem();
 		scraperName = scraper_list->getSelected();
-	}	
+		// The configured default may not be compiled in (e.g. ScreenScraper
+		// without SCREENSCRAPER_DEV_LOGIN). Keep the actual engine selected
+		// by the UI consistent with the engine used by the worker thread.
+		Settings::getInstance()->setString("Scraper", scraperName);
+	}
 
 	addGroup(_("FILTERS"));
 
