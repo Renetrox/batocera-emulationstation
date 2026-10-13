@@ -4428,16 +4428,17 @@ void GuiMenu::openQuitMenu_static(Window *window, bool quickAccessMenu, bool ani
 			_("NO"), nullptr));
 	}, "iconFastShutdown");
 
-#ifdef WIN32
+	// A standalone Linux frontend must be able to return to the invoking
+	// shell or RetroPie menu without rebooting or shutting the system down.
+	// The actual quit action is already cross-platform in Utils::Platform.
 	if (Settings::getInstance()->getBool("ShowExit"))
 	{
 		s->addEntry(_("QUIT EMULATIONSTATION"), false, [window] {
-			window->pushGui(new GuiMsgBox(window, _("REALLY QUIT?"), 
+			window->pushGui(new GuiMsgBox(window, _("REALLY QUIT?"),
 				_("YES"), [] { Utils::Platform::quitES(Utils::Platform::QuitMode::QUIT); },
 				_("NO"), nullptr));
 		}, "iconQuit");
 	}
-#endif
 
 	if (quickAccessMenu && animate)
 		s->getMenu().animateTo(Vector2f((Renderer::getScreenWidth() - s->getMenu().getSize().x()) / 2, (Renderer::getScreenHeight() - s->getMenu().getSize().y()) / 2));
