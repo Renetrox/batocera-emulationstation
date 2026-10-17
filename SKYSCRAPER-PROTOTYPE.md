@@ -1,3 +1,6 @@
+> Superseded as the default by native providers. See TARAVE-NATIVE-SCRAPERS.md.
+> The external prototype is available only with TARAVE_ENABLE_SKYSCRAPER=ON.
+
 # Skyscraper GUI prototype
 
 Base: experiment/retropie-standalone-20261013 (9fee99e).
