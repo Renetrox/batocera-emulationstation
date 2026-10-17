@@ -231,6 +231,21 @@ if(CEC)
   endif()
 endif()
 
+# Standalone Tarave inherits the native application identity already distributed
+# by ES-X/RetroPie. Explicit build credentials continue to take precedence.
+set(_tarave_compat_default OFF)
+if(NOT BATOCERA AND NOT RETROBAT)
+    set(_tarave_compat_default ON)
+endif()
+option(TARAVE_ESX_SCRAPER_COMPAT "Enable native scrapers with inherited ES-X application identity" ${_tarave_compat_default})
+option(TARAVE_ENABLE_SKYSCRAPER "Expose the experimental external Skyscraper provider" OFF)
+if(TARAVE_ESX_SCRAPER_COMPAT)
+    add_definitions(-DTARAVE_ESX_SCRAPER_COMPAT)
+endif()
+if(TARAVE_ENABLE_SKYSCRAPER)
+    add_definitions(-DTARAVE_ENABLE_SKYSCRAPER)
+endif()
+
 if(DEFINED SCREENSCRAPER_SOFTNAME)
     add_definitions(-DSCREENSCRAPER_SOFTNAME="${SCREENSCRAPER_SOFTNAME}")
 endif()
