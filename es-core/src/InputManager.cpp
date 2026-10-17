@@ -755,6 +755,8 @@ bool InputManager::tryLoadInputConfig(std::string path, InputConfig* config, boo
 	if (!configNode)
 		return false;
 
+	LOG(LogInfo) << "[Tarave input] Loading mapping from " << path
+		<< " for " << config->getDeviceName() << " GUID=" << config->getDeviceGUIDString();
 	config->loadFromXML(configNode);
 	return true;
 }
@@ -1016,12 +1018,22 @@ void InputManager::writeDeviceConfig(InputConfig* config, bool configureRetroPie
 		return;
 	}
 
-	Scripting::fireEvent("config-changed");
-	Scripting::fireEvent("controls-changed");
+#if !defined(WIN32) && !defined(BATOCERA)
+	// Detection must not invoke external configuration scripts.
+	if (configureRetroPie)
+#endif
+	{
+		Scripting::fireEvent("config-changed");
+		Scripting::fireEvent("controls-changed");
+	}
 	
 	// execute any onFinish commands and re-load the config for changes
 	doOnFinish(configureRetroPie);
+#if defined(WIN32) || defined(BATOCERA)
 	loadInputConfig(config);
+#endif
+	// Standalone Tarave keeps the confirmed in-memory mapping. Only the
+	// emulator copy is translated; never reload it through a legacy hook.
 }
 
 void InputManager::doOnFinish(bool configureRetroPie)
@@ -1029,30 +1041,34 @@ void InputManager::doOnFinish(bool configureRetroPie)
 	if (!initialized())
 		return;
 
-	// Standalone RetroPie bridge; leave distribution builds on their native hooks.
-	bool retropieBridgeRan = false;
+	// Standalone has exactly one explicit emulator configuration path.
 #if !defined(WIN32) && !defined(BATOCERA)
-	const std::string retroPieScript = "/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh";
-	if (configureRetroPie && Utils::FileSystem::exists(retroPieScript))
+	if (!configureRetroPie)
+		return;
+	std::string helper = ResourceManager::getInstance()->getResourcePath(":/retropie-input-bridge.py");
+	if (!Utils::FileSystem::exists(helper))
 	{
-		std::string helper = ResourceManager::getInstance()->getResourcePath(":/retropie-input-bridge.py");
-		std::string source = getTemporaryConfigPath();
-		char* arguments[] = {const_cast<char*>("python3"), const_cast<char*>(helper.c_str()),
-			const_cast<char*>(source.c_str()), nullptr};
-		pid_t child;
-		int result = posix_spawnp(&child, "python3", nullptr, nullptr, arguments, environ);
-		if (result == 0)
-		{
-			int status = 0;
-			pid_t waited;
-			do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
-			result = (waited > 0 && WIFEXITED(status)) ? WEXITSTATUS(status) : -1;
-		}
-		retropieBridgeRan = true;
-		if (result != 0)
-			LOG(LogError) << "RetroPie controller bridge failed: " << result << "; native mapping remains saved";
+		LOG(LogError) << "[Tarave input] Emulator bridge is missing; native mapping remains saved";
+		return;
 	}
-#endif
+	std::string source = getTemporaryConfigPath();
+	LOG(LogInfo) << "[Tarave input] Configuring emulators from " << source;
+	char* arguments[] = {const_cast<char*>("python3"), const_cast<char*>(helper.c_str()),
+		const_cast<char*>(source.c_str()), nullptr};
+	pid_t child;
+	int result = posix_spawnp(&child, "python3", nullptr, nullptr, arguments, environ);
+	if (result == 0)
+	{
+		int status = 0;
+		pid_t waited;
+		do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+		result = (waited > 0 && WIFEXITED(status)) ? WEXITSTATUS(status) : -1;
+	}
+	if (result != 0)
+		LOG(LogError) << "[Tarave input] Emulator bridge failed: " << result << "; native mapping remains saved";
+	// Never run inherited ES-X/RetroPie onfinish commands a second time.
+	return;
+#else
 
 	std::string path = getConfigPath();
 	pugi::xml_document doc;
@@ -1076,10 +1092,6 @@ void InputManager::doOnFinish(bool configureRetroPie)
 							command = command.next_sibling("command"))
 					{
 						std::string tocall = command.text().get();
-						// Do not invoke the stock converter twice (or with untranslated XML).
-						if (retropieBridgeRan && (tocall == "/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh" ||
-							tocall == "\"/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh\""))
-							continue;
 
 
 						LOG(LogInfo) << "	" << tocall;
@@ -1096,6 +1108,7 @@ void InputManager::doOnFinish(bool configureRetroPie)
 			}
 		}
 	}
+#endif
 }
 
 std::string InputManager::getConfigPath()
