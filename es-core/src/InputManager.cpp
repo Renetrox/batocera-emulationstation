@@ -1,4 +1,11 @@
 #include "InputManager.h"
+#include "resources/ResourceManager.h"
+#if !defined(WIN32) && !defined(BATOCERA)
+#include <spawn.h>
+#include <sys/wait.h>
+#include <cerrno>
+extern char** environ;
+#endif
 
 #include "utils/FileSystemUtil.h"
 #include "CECInput.h"
@@ -946,7 +953,7 @@ void InputManager::loadDefaultGunConfig()
 #endif
 }
 
-void InputManager::writeDeviceConfig(InputConfig* config)
+void InputManager::writeDeviceConfig(InputConfig* config, bool configureRetroPie)
 {
 	assert(initialized());
 
@@ -992,27 +999,60 @@ void InputManager::writeDeviceConfig(InputConfig* config)
 		root = doc.append_child("inputList");
 
 	config->writeToXML(root);
-	doc.save_file(WINSTRINGW(path).c_str());
+	if (!doc.save_file(WINSTRINGW(path).c_str()))
+	{
+		LOG(LogError) << "Cannot save native controller mapping: " << path;
+		return;
+	}
         
 	/* create a es_last_input.cfg so that people can easily share their config */
 	pugi::xml_document lastdoc;
 	pugi::xml_node lastroot = lastdoc.append_child("inputList");
 	config->writeToXML(lastroot);
 	std::string lastpath = getTemporaryConfigPath();
-	lastdoc.save_file(WINSTRINGW(lastpath).c_str());
+	if (!lastdoc.save_file(WINSTRINGW(lastpath).c_str()))
+	{
+		LOG(LogError) << "Cannot save controller export: " << lastpath;
+		return;
+	}
 
 	Scripting::fireEvent("config-changed");
 	Scripting::fireEvent("controls-changed");
 	
 	// execute any onFinish commands and re-load the config for changes
-	doOnFinish();
+	doOnFinish(configureRetroPie);
 	loadInputConfig(config);
 }
 
-void InputManager::doOnFinish()
+void InputManager::doOnFinish(bool configureRetroPie)
 {
 	if (!initialized())
 		return;
+
+	// Standalone RetroPie bridge; leave distribution builds on their native hooks.
+	bool retropieBridgeRan = false;
+#if !defined(WIN32) && !defined(BATOCERA)
+	const std::string retroPieScript = "/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh";
+	if (configureRetroPie && Utils::FileSystem::exists(retroPieScript))
+	{
+		std::string helper = ResourceManager::getInstance()->getResourcePath(":/retropie-input-bridge.py");
+		std::string source = getTemporaryConfigPath();
+		char* arguments[] = {const_cast<char*>("python3"), const_cast<char*>(helper.c_str()),
+			const_cast<char*>(source.c_str()), nullptr};
+		pid_t child;
+		int result = posix_spawnp(&child, "python3", nullptr, nullptr, arguments, environ);
+		if (result == 0)
+		{
+			int status = 0;
+			pid_t waited;
+			do { waited = waitpid(child, &status, 0); } while (waited < 0 && errno == EINTR);
+			result = (waited > 0 && WIFEXITED(status)) ? WEXITSTATUS(status) : -1;
+		}
+		retropieBridgeRan = true;
+		if (result != 0)
+			LOG(LogError) << "RetroPie controller bridge failed: " << result << "; native mapping remains saved";
+	}
+#endif
 
 	std::string path = getConfigPath();
 	pugi::xml_document doc;
@@ -1036,6 +1076,11 @@ void InputManager::doOnFinish()
 							command = command.next_sibling("command"))
 					{
 						std::string tocall = command.text().get();
+						// Do not invoke the stock converter twice (or with untranslated XML).
+						if (retropieBridgeRan && (tocall == "/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh" ||
+							tocall == "\"/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh\""))
+							continue;
+
 
 						LOG(LogInfo) << "	" << tocall;
 						std::cout << "==============================================\ninput config finish command:\n";						
