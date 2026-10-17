@@ -1,4 +1,5 @@
 #include "scrapers/Scraper.h"
+#include "scrapers/Skyscraper.h"
 
 #include "FileData.h"
 #include "ArcadeDBJSONScraper.h"
@@ -22,6 +23,9 @@
 
 std::vector<std::pair<std::string, Scraper*>> Scraper::scrapers
 {
+#ifndef WIN32
+    { "Skyscraper", new SkyscraperScraper() },
+#endif
 #ifdef SCREENSCRAPER_DEV_LOGIN
 	{ "ScreenScraper", new ScreenScraperScraper() },
 #endif
