@@ -11,7 +11,19 @@ import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
 
-SCRIPT = Path('/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh')
+DISPATCHERS = (
+    Path('/opt/retropie/supplementary/emulationstation-es-x/scripts/inputconfiguration.sh'),
+    Path('/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh'),
+)
+
+
+def select_dispatcher(candidates=None):
+    for script in DISPATCHERS if candidates is None else candidates:
+        script = Path(script)
+        if script.is_file() and (script.parent / 'configscripts').is_dir():
+            return script
+    raise ValueError('No installed RetroPie/ES-X controller dispatcher with configscripts was found')
+
 NAMES = {'pageup':'leftshoulder', 'pagedown':'rightshoulder',
          'l2':'lefttrigger', 'r2':'righttrigger', 'l3':'leftthumb',
          'r3':'rightthumb', 'hotkey':'hotkeyenable',
@@ -87,8 +99,9 @@ def run_configurators(script):
         subprocess.run(['bash', str(dispatcher)], check=True)
 
 
-def apply(source, home, script=SCRIPT):
+def apply(source, home, script=None):
     data = translate(source)
+    script = select_dispatcher() if script is None else script
     target = Path(home) / '.emulationstation' / 'es_temporaryinput.cfg'
     target.parent.mkdir(parents=True, exist_ok=True)
     with (target.parent / '.tarave-input.lock').open('a') as lock:
@@ -118,8 +131,8 @@ if __name__ == '__main__':
         else:
             if os.getuid() == 0:
                 raise ValueError('Run as the RetroPie user, not root')
-            if not SCRIPT.is_file():
-                raise ValueError('RetroPie inputconfiguration.sh is not installed')
-            apply(args.source, pwd.getpwuid(os.getuid()).pw_dir)
+            script = select_dispatcher()
+            print('Tarave: configuring emulators using ' + str(script), flush=True)
+            apply(args.source, pwd.getpwuid(os.getuid()).pw_dir, script)
     except (OSError, ValueError, ET.ParseError, subprocess.CalledProcessError) as error:
         parser.exit(1, 'RetroPie controller setup failed: ' + str(error) + '\n')
