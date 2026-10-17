@@ -2,6 +2,11 @@
 #ifndef ES_APP_EMULATION_STATION_H
 #define ES_APP_EMULATION_STATION_H
 
+#ifdef TARAVE_ESX_SCRAPER_COMPAT
+#include "HttpReq.h"
+#include "scrapers/TaraveScraperCompat.h"
+#endif
+
 // These numbers and strings need to be manually updated for a new version.
 // Do this version number update as the very last commit for the new release version.
 #define PROGRAM_VERSION_MAJOR        @VERSION_MAJOR@
