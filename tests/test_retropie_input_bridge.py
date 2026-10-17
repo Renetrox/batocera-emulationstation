@@ -67,7 +67,7 @@ class InputBridgeTests(unittest.TestCase):
     def test_temporary_removed_if_previously_absent(self):
         with tempfile.TemporaryDirectory() as folder:
             source=self.source(folder,[('up','button',1,1)])
-            with patch.object(bridge,'run_configurators'): bridge.apply(source,folder)
+            with patch.object(bridge,'run_configurators'): bridge.apply(source,folder,Path('/test/configure.sh'))
             self.assertFalse((Path(folder)/'.emulationstation/es_temporaryinput.cfg').exists())
 
     def test_real_shell_receives_translation(self):
@@ -97,6 +97,21 @@ class InputBridgeTests(unittest.TestCase):
             bridge.run_configurators(dispatcher)
             self.assertFalse(frontend.exists())
             self.assertTrue(emulator.exists())
+
+    def test_dispatcher_selection_and_fallback(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            first=root/'esx/inputconfiguration.sh'
+            second=root/'stock/inputconfiguration.sh'
+            for candidate in (first,second):
+                candidate.parent.mkdir()
+                candidate.write_text('#!/bin/bash')
+                (candidate.parent/'configscripts').mkdir()
+            self.assertEqual(bridge.select_dispatcher([first,second]),first)
+            first.unlink()
+            self.assertEqual(bridge.select_dispatcher([first,second]),second)
+            second.unlink()
+            with self.assertRaises(ValueError): bridge.select_dispatcher([first,second])
 
     def test_invalid_analog_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
