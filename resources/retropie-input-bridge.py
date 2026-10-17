@@ -6,6 +6,7 @@ import fcntl
 import os
 from pathlib import Path
 import pwd
+import shutil
 import subprocess
 import tempfile
 import xml.etree.ElementTree as ET
@@ -66,6 +67,26 @@ def atomic_write(path, data, mode=0o600):
             os.unlink(temporary)
 
 
+def run_configurators(script):
+    script = Path(script)
+    modules = script.parent / 'configscripts'
+    if not script.is_file() or not modules.is_dir():
+        raise ValueError('RetroPie dispatcher or configscripts directory is missing')
+    # The stock dispatcher resolves configscripts relative to $0. Give it a
+    # private module list that excludes its frontend writer, while keeping all
+    # installed emulator configurators and the installed dispatcher itself.
+    with tempfile.TemporaryDirectory(prefix='tarave-configurators-') as directory:
+        bundle = Path(directory)
+        dispatcher = bundle / 'inputconfiguration.sh'
+        shutil.copy2(script, dispatcher)
+        selected = bundle / 'configscripts'
+        selected.mkdir()
+        for module in modules.glob('*.sh'):
+            if module.name != 'emulationstation.sh' and module.is_file():
+                (selected / module.name).symlink_to(module.resolve())
+        subprocess.run(['bash', str(dispatcher)], check=True)
+
+
 def apply(source, home, script=SCRIPT):
     data = translate(source)
     target = Path(home) / '.emulationstation' / 'es_temporaryinput.cfg'
@@ -78,7 +99,7 @@ def apply(source, home, script=SCRIPT):
         mode = target.stat().st_mode & 0o777 if previous is not None else 0o600
         try:
             atomic_write(target, data)
-            subprocess.run(['bash', str(script)], check=True)
+            run_configurators(script)
         finally:
             if previous is None:
                 target.unlink(missing_ok=True)
