@@ -54,11 +54,11 @@ class InputBridgeTests(unittest.TestCase):
                 target=Path(folder)/'.emulationstation/es_temporaryinput.cfg'
                 target.parent.mkdir()
                 target.write_bytes(b'old temporary contents')
-                def execute(args, **kwargs):
-                    self.assertEqual(args,['bash','/test/configure.sh'])
+                def execute(script):
+                    self.assertEqual(script,Path('/test/configure.sh'))
                     self.assertEqual(ET.parse(target).getroot().find('inputConfig/input').get('name'),'hotkeyenable')
-                    if fail: raise subprocess.CalledProcessError(1,args)
-                with patch.object(bridge.subprocess,'run',side_effect=execute):
+                    if fail: raise subprocess.CalledProcessError(1,str(script))
+                with patch.object(bridge,'run_configurators',side_effect=execute):
                     if fail:
                         with self.assertRaises(subprocess.CalledProcessError): bridge.apply(source,folder,Path('/test/configure.sh'))
                     else: bridge.apply(source,folder,Path('/test/configure.sh'))
@@ -67,19 +67,36 @@ class InputBridgeTests(unittest.TestCase):
     def test_temporary_removed_if_previously_absent(self):
         with tempfile.TemporaryDirectory() as folder:
             source=self.source(folder,[('up','button',1,1)])
-            with patch.object(bridge.subprocess,'run'): bridge.apply(source,folder)
+            with patch.object(bridge,'run_configurators'): bridge.apply(source,folder)
             self.assertFalse((Path(folder)/'.emulationstation/es_temporaryinput.cfg').exists())
 
     def test_real_shell_receives_translation(self):
         with tempfile.TemporaryDirectory() as folder:
             source=self.source(folder,[('hotkey','button',6,1),('pageup','button',4,1)])
             script=Path(folder)/'configurator.sh'
+            (Path(folder)/'configscripts').mkdir()
             target=Path(folder)/'.emulationstation/es_temporaryinput.cfg'
             # Harmless stand-in for the installed dispatcher, executed by real bash.
             import shlex
             script.write_text("#!/bin/bash\npython3 - " + shlex.quote(str(target)) + " <<'CHECK'\nimport sys, xml.etree.ElementTree as ET\nnames={i.get('name') for i in ET.parse(sys.argv[1]).getroot().findall('inputConfig/input')}\nassert names == {'hotkeyenable','leftshoulder'}, names\nCHECK\n")
             bridge.apply(source,folder,script)
             self.assertFalse(target.exists())
+
+    def test_frontend_writer_excluded_from_real_dispatch(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            modules=root/'configscripts'
+            modules.mkdir()
+            dispatcher=root/'inputconfiguration.sh'
+            dispatcher.write_text('#!/bin/bash\nfor module in "$(dirname "$0")"/configscripts/*.sh; do source "$module"; done\n')
+            frontend=root/'frontend-touched'
+            emulator=root/'emulator-configured'
+            import shlex
+            (modules/'emulationstation.sh').write_text('touch '+shlex.quote(str(frontend)))
+            (modules/'retroarch.sh').write_text('touch '+shlex.quote(str(emulator)))
+            bridge.run_configurators(dispatcher)
+            self.assertFalse(frontend.exists())
+            self.assertTrue(emulator.exists())
 
     def test_invalid_analog_rejected(self):
         with tempfile.TemporaryDirectory() as folder:
