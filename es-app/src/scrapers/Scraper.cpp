@@ -23,7 +23,7 @@
 
 std::vector<std::pair<std::string, Scraper*>> Scraper::scrapers
 {
-#ifndef WIN32
+#if !defined(WIN32) && defined(TARAVE_ENABLE_SKYSCRAPER)
     { "Skyscraper", new SkyscraperScraper() },
 #endif
 #ifdef SCREENSCRAPER_DEV_LOGIN
