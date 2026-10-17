@@ -256,7 +256,7 @@ GuiInputConfig::GuiInputConfig(Window* window, InputConfig* target, bool reconfi
 	// buttons
 	std::vector< std::shared_ptr<ButtonComponent> > buttons;
 	std::function<void()> okFunction = [this, okCallback] {
-		InputManager::getInstance()->writeDeviceConfig(mTargetConfig); // save
+		InputManager::getInstance()->writeDeviceConfig(mTargetConfig, true); // save
 		if(okCallback)
 			okCallback();
 		delete this; 
