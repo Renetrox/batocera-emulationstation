@@ -1,4 +1,8 @@
 #include "Window.h"
+#include <cstdlib>
+#include <sstream>
+#include <typeinfo>
+#include <SDL_timer.h>
 
 #include "components/HelpComponent.h"
 #include "components/ImageComponent.h"
@@ -214,6 +218,28 @@ void Window::input(InputConfig* config, Input input)
 {
 	if (config == nullptr)
 		return;
+
+	// Opt-in diagnostic only: do not delay or suppress controller input.
+	static const bool traceInput = [] {
+		const char* value = std::getenv("TARAVE_INPUT_TRACE");
+		return value != nullptr && std::string(value) == "1";
+	}();
+	if (traceInput)
+	{
+		std::ostringstream mapped;
+		for (const auto& name : config->getMappedTo(input))
+			mapped << name << ",";
+		auto gui = peekGui();
+		LOG(LogInfo) << "[Tarave input trace] tick=" << SDL_GetTicks()
+			<< " device=" << config->getDeviceName()
+			<< " instance=" << config->getDeviceId()
+			<< " index=" << config->getDeviceIndex()
+			<< " type=" << static_cast<int>(input.type)
+			<< " id=" << input.id << " value=" << input.value
+			<< " mapped=" << mapped.str()
+			<< " gui=" << (gui ? typeid(*gui).name() : "none");
+	}
+
 	
 	if (config->getDeviceIndex() >= 0 && Settings::getInstance()->getBool("FirstJoystickOnly"))
 	{
