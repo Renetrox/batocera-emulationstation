@@ -943,6 +943,20 @@ ScreenScraperUser ScreenScraperRequest::processUserInfo(const pugi::xml_document
 
 int ScreenScraperScraper::getThreadCount(std::string &result)
 {
+	// Match the classic scraper: without a personal account, search directly
+	// with one worker. ssuserInfos is an account lookup, not a prerequisite
+	// for game lookup. The game endpoint still enforces all service limits.
+	result.clear();
+	const auto user = Settings::getInstance()->getString("ScreenScraperUser");
+	const auto pass = Settings::getInstance()->getString("ScreenScraperPass");
+	if (user.empty() && pass.empty())
+		return 1;
+	if (user.empty() || pass.empty())
+	{
+		result = _("ScreenScraper account is incomplete. Enter both username and password, or clear both fields to try without an account.");
+		return -1;
+	}
+
 	ScreenScraperRequest::ScreenScraperConfig ssConfig;
 	std::string url = ssConfig.getUserInfoUrl();
 
@@ -952,7 +966,8 @@ int ScreenScraperScraper::getThreadCount(std::string &result)
 	if (httpreq.status() != HttpReq::REQ_SUCCESS)
 	{
 		result = httpreq.getErrorMsg();
-		result = Utils::String::trim(Utils::String::replace(result, "<br>", "\r\n"));
+		result = _("ScreenScraper account verification failed (ssuserInfos). The service replied:") + std::string("\n") +
+			Utils::String::trim(Utils::String::replace(result, "<br>", "\r\n"));
 		return -1;
 	}
 
