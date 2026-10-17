@@ -14,6 +14,11 @@ the bridge removes its temporary export. It rejects unsupported or conflicting
 mappings and a symlink at the temporary target. A per-user lock serializes bridge
 invocations. Other programs invoking RetroPie independently do not share this lock.
 
+The dispatcher now runs with a private configscripts list that excludes
+RetroPie's emulationstation.sh frontend writer. Emulator modules remain the
+installed ones. This prevents a shared/native es_input.cfg from being rewritten
+with RetroPie names or A/B swaps.
+
 The bridge does not rewrite the main RetroPie es_input.cfg or copy mappings for
 other devices. Installed RetroPie configurators do update emulator settings;
 those updates are not transactional and are not rolled back on a partial failure.
@@ -46,3 +51,6 @@ After compiling/installing the experimental branch and its resources, configure
 one pad from the native menu and confirm OK. Check the terminal/frontend log,
 then verify its RetroArch autoconfiguration and an actual game. Keep the working
 frontend installed until those on-device tests pass.
+
+Regression check: a real Bash fixture confirms that the frontend writer is
+excluded while the emulator configurator still executes. All 12 Python tests pass.
