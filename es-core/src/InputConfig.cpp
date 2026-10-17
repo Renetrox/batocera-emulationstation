@@ -1,4 +1,5 @@
 #include "InputConfig.h"
+#include <SDL.h>
 
 #include "Log.h"
 #include <pugixml/src/pugixml.hpp>
@@ -322,6 +323,18 @@ void InputConfig::writeToXML(pugi::xml_node& parent)
 	}
 
 	cfg.append_attribute("deviceGUID") = mDeviceGUID.c_str();
+#if SDL_VERSION_ATLEAST(2, 0, 6)
+	if (mDeviceId >= 0)
+	{
+		auto joystick = SDL_JoystickFromInstanceID(mDeviceId);
+		if (joystick != nullptr)
+		{
+			cfg.append_attribute("vendorId").set_value(SDL_JoystickGetVendor(joystick));
+			cfg.append_attribute("productId").set_value(SDL_JoystickGetProduct(joystick));
+		}
+	}
+#endif
+
 
 	typedef std::map<std::string, Input>::const_iterator it_type;
 	for(it_type iterator = mNameMap.cbegin(); iterator != mNameMap.cend(); iterator++)
