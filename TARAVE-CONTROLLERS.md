@@ -1,3 +1,12 @@
+> Updated standalone flow: automatic detection does not fire configuration
+> events or onfinish hooks. Manual confirmation invokes only the emulator bridge,
+> without reloading the native mapping or running legacy onfinish commands.
+> Dispatcher selection prefers an installed ES-X configurator and falls back to
+> stock RetroPie, requiring its configscripts directory. The frontend writer
+> remains excluded. Existing XML files are not automatically repaired.
+> Fifteen tests pass, including compiled native dispatch tests with process
+> stand-ins. Physical controller/full GUI validation remains pending.
+
 # Tarave-ES: experimental RetroPie controller bridge
 
 On standalone Linux builds, confirming a manual controller mapping now invokes
@@ -26,9 +35,8 @@ Names/GUIDs and available SDL vendor/product IDs are exported. Explicit disabled
 hotkeys (`key`, id 0) are preserved. Stock dispatcher disable settings remain in
 effect. Python paths/arguments are passed without a shell.
 
-An identical pre-existing stock onfinish command is skipped after the bridge is
-attempted, avoiding a duplicate untranslated invocation. Other custom hooks remain
-in place; custom wrappers around the stock dispatcher need individual review.
+Standalone onfinish XML commands are not executed: the explicit bridge replaces
+them. Custom controller hooks must be reviewed before reconnecting them.
 Distribution BATOCERA builds and Windows retain their native hook behavior.
 
 ## Tests and remaining validation
