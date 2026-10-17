@@ -10,11 +10,12 @@ class PreflightTests(unittest.TestCase):
     def test_account_branches(self):
         root=Path(__file__).parents[1]
         source=(root/'es-app/src/scrapers/ScreenScraper.cpp').read_text()
+        self.assertIn('#include "LocaleES.h"', source)
         method=source.split('int ScreenScraperScraper::getThreadCount(std::string &result)',1)[1].rsplit('#endif',1)[0]
         harness=r'''
 #include <string>
 #include <cassert>
-#define _(x) std::string(x)
+#include "LocaleES.h"
 static int calls=0, status=0, maxthreads=3;
 static bool validXML=true;
 struct Settings {
@@ -62,7 +63,7 @@ int main() {
         with tempfile.TemporaryDirectory() as directory:
             cpp=Path(directory)/'test.cpp'; binary=Path(directory)/'test'
             cpp.write_text(harness)
-            subprocess.run(['g++','-std=c++11',str(cpp),'-o',str(binary)],check=True,capture_output=True)
+            subprocess.run(['g++','-std=c++11','-I'+str(root/'es-core/src'),str(cpp),'-o',str(binary)],check=True,capture_output=True)
             subprocess.run([str(binary)],check=True)
 
 if __name__=='__main__': unittest.main()
