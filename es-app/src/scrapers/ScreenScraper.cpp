@@ -5,6 +5,7 @@
 #include "utils/StringUtil.h"
 #include "FileData.h"
 #include "Log.h"
+#include "LocaleES.h"
 #include "PlatformId.h"
 #include "Settings.h"
 #include "SystemData.h"
