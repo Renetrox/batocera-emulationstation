@@ -36,8 +36,8 @@ public:
 
 	virtual ~InputManager();
 
-	void writeDeviceConfig(InputConfig* config);
-	void doOnFinish();
+	void writeDeviceConfig(InputConfig* config, bool configureRetroPie = false);
+	void doOnFinish(bool configureRetroPie = false);
 	static std::string getConfigPath();
 
 	void init();
