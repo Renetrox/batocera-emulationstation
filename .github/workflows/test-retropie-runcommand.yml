@@ -3,6 +3,7 @@ name: Test Tarave Runcommand bridge
 on:
   push:
     branches:
+      - experiment/retropie-standalone-20261013
       - experiment/retropie-runcommand-bridge
   workflow_dispatch:
 
