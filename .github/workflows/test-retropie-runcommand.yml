@@ -1,0 +1,20 @@
+name: Test Tarave Runcommand bridge
+
+on:
+  push:
+    branches:
+      - experiment/retropie-runcommand-bridge
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile C++11 backend tests
+        run: >
+          g++ -std=c++11 -Wall -Wextra -pedantic
+          tests/test_retropie_runcommand_bridge.cpp
+          -o /tmp/tarave-runcommand-test
+      - name: Run backend tests
+        run: /tmp/tarave-runcommand-test
