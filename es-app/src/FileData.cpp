@@ -17,14 +17,13 @@
 #include "views/UIModeController.h"
 #include <assert.h>
 #include "SystemConf.h"
+#include "RetroPieRuncommand.h"
 #include "InputManager.h"
 #include "scrapers/ThreadedScraper.h"
 #include "Gamelist.h" 
 #include "ApiSystem.h"
 #include <time.h>
 #include <algorithm>
-#include <cctype>
-#include <cstdlib>
 #include "LangParser.h"
 #include "resources/ResourceManager.h"
 #include "RetroAchievements.h"
@@ -483,29 +482,13 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 		return "";
 
 #ifndef WIN32
-	// Optional RetroPie launcher bridge. RetroPie owns emulator selection through
-	// /opt/retropie/configs/<system>/emulators.cfg, including runcommand's
-	// launch-time emulator picker. Keep Batocera's original commands as the
-	// default and as the fallback for systems without RetroPie configuration.
-	const char* retroPieBridge = std::getenv("TARAVE_USE_RETROPIE_RUNCOMMAND");
-	if (retroPieBridge != nullptr && std::string(retroPieBridge) == "1")
+	// RetroPie Runcommand is authoritative for systems with emulators.cfg.
+	// Non-RetroPie systems continue to use their configured launch command.
+	if (RetroPieRuncommand::handlesSystem(system->getName()))
 	{
-		const std::string systemName = system->getName();
-		const bool safeSystemName = !systemName.empty() &&
-			std::all_of(systemName.begin(), systemName.end(), [](unsigned char c) {
-				return std::isalnum(c) || c == '_' || c == '-';
-			});
-		const std::string runcommand = "/opt/retropie/supplementary/runcommand/runcommand.sh";
-		const std::string emulatorsCfg = "/opt/retropie/configs/" + systemName + "/emulators.cfg";
-		if (safeSystemName && Utils::FileSystem::exists(runcommand) && Utils::FileSystem::exists(emulatorsCfg))
-		{
-			LOG(LogInfo) << "Tarave: launching " << systemName << " with RetroPie runcommand";
-			return runcommand + " 0 _SYS_ " + systemName + " " +
-				Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
-		}
-
-		LOG(LogWarning) << "Tarave: RetroPie runcommand not configured for system '"
-			<< systemName << "'; using original launch command";
+		LOG(LogInfo) << "Tarave: launching " << system->getName() << " with RetroPie runcommand";
+		return std::string("/opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ ") +
+			system->getName() + " " + Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
 	}
 #endif
 
