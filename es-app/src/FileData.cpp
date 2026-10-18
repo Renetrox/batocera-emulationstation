@@ -481,6 +481,9 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 	if (system == nullptr)
 		return "";
 
+	// Retain input setup before closing the frontend, including with Runcommand.
+	std::string controllersConfig = InputManager::getInstance()->configureEmulators();
+
 #ifndef WIN32
 	// RetroPie Runcommand is authoritative for systems with emulators.cfg.
 	// Non-RetroPie systems continue to use their configured launch command.
@@ -491,9 +494,6 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 			system->getName() + " " + Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
 	}
 #endif
-
-	// must really;-) be done before window->deinit while it closes joysticks
-	std::string controllersConfig = InputManager::getInstance()->configureEmulators();
 
 	if (gameToUpdate->isLightGunGame())
 		controllersConfig = controllersConfig + "-lightgun ";
