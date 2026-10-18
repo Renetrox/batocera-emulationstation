@@ -3,7 +3,7 @@
 
 #define PACKAGE_LANG "emulationstation2"
 
-#if !defined(WIN32)
+#if !defined(WIN32) && !defined(TARAVE_PORTABLE_LOCALE)
 
 #include "SystemConf.h"
 
