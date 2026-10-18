@@ -18,6 +18,7 @@
 #include "FileData.h"
 #include "FileFilterIndex.h"
 #include "SystemData.h"
+#include "RetroPieRuncommand.h"
 #include "Window.h"
 #include "LocaleES.h"
 #include "guis/GuiTextEditPopupKeyboard.h"
@@ -94,7 +95,8 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 
 		if (iter->key == "emulator")
 		{
-			if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
+			if (RetroPieRuncommand::handlesSystem(file->getSourceFileData()->getSystem()->getName()) ||
+				ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 				continue;
 
 			std::string defaultEmul = system->getDefaultEmulator();
@@ -152,7 +154,8 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 
 		if (iter->key == "core")
 		{
-			if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
+			if (RetroPieRuncommand::handlesSystem(file->getSourceFileData()->getSystem()->getName()) ||
+				ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 				continue;
 
 			core_choice->setTag(iter->key);
