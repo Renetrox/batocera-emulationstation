@@ -285,14 +285,18 @@ namespace Utils
 			case QuitMode::REBOOT:
 			case QuitMode::FAST_REBOOT:
 				LOG(LogInfo) << "Rebooting system";
+#if defined(BATOCERA) || defined(RETROBAT) || defined(WIN32)
 				touch("/tmp/reboot.please");
+#endif
 				if (runRestartCommand() != 0)
 					LOG(LogError) << "System reboot failed. Check systemd/logind permissions.";
 				break;
 			case QuitMode::SHUTDOWN:
 			case QuitMode::FAST_SHUTDOWN:
 				LOG(LogInfo) << "Shutting system down";
+#if defined(BATOCERA) || defined(RETROBAT) || defined(WIN32)
 				touch("/tmp/shutdown.please");
+#endif
 				if (runShutdownCommand() != 0)
 					LOG(LogError) << "System poweroff failed. Check systemd/logind permissions.";
 				break;
