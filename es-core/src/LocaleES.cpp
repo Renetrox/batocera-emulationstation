@@ -93,6 +93,7 @@ const bool EsLocale::isRTL()
 #include "Settings.h"
 #include "utils/FileSystemUtil.h"
 #include "SystemConf.h"
+#include "Paths.h"
 #include <fstream>
 
 std::map<std::string, std::string> EsLocale::mItems;
@@ -246,6 +247,22 @@ void EsLocale::checkLocalisationLoaded()
 			}
 		}
 
+#ifdef TARAVE_PORTABLE_LOCALE
+		// Unlike Batocera's compiled gettext catalogs, RetroPie-Extra installs
+		// PO sources next to the frontend binary: <inst>/locale/lang/es/...
+		// ResourceManager searches under /resources and cannot see this tree.
+		if (!Utils::FileSystem::exists(xmlpath))
+		{
+			std::string localeDir = Paths::getExePath() + "/locale/lang/";
+			xmlpath = localeDir + mCurrentLanguage + "/LC_MESSAGES/" + file;
+			if (!Utils::FileSystem::exists(xmlpath))
+			{
+				const size_t sep = mCurrentLanguage.find('_');
+				if (sep != std::string::npos)
+					xmlpath = localeDir + mCurrentLanguage.substr(0, sep) + "/LC_MESSAGES/" + file;
+			}
+		}
+#endif
 		if (!Utils::FileSystem::exists(xmlpath))
 			continue;
 
