@@ -28,6 +28,11 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
             tests/test_tarave_network_selection.cpp -o /tmp/tarave-network-test
           /tmp/tarave-network-test
+      - name: Test RetroPie gamelist PNG icon and metadata fallback
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
+            tests/test_tarave_retropie_gamelist.cpp -o /tmp/tarave-gamelist-test
+          /tmp/tarave-gamelist-test
       - name: Verify isolated configuration resolves RetroPie ROM paths
         run: |
           python3 - <<'PY'
