@@ -28,6 +28,42 @@ other emulator entries and comments, and use a same-directory atomic rename.
 The `AUTO` option in per-game settings removes the ROM-specific override so
 that Runcommand inherits the system setting.
 
+## RetroPie settings menu (Bluetooth, Runcommand, RetroPie Setup)
+
+The `retropie` carousel system comes from RetroPie-Setup's official
+`retropiemenu` package, **not** from EmulationStation or Runcommand.
+It creates `~/RetroPie/retropiemenu/*.rp` shortcuts and a corresponding
+entry in the EmulationStation systems list.
+
+In RetroPie mode, Tarave now imports the **already installed** menu into
+the *in-memory* systems list when its usual systems configuration does not
+contain `retropie`. It requires both
+`~/RetroPie/retropiemenu/rpsetup.rp` and
+`~/RetroPie-Setup/retropie_packages.sh`. It never writes to the user's
+system XML and does not duplicate an existing entry.
+
+Check its installation:
+
+```sh
+bash scripts/tarave-retropie-menu.sh --check
+```
+
+If RetroPie-Setup is already installed but the menu shortcuts are missing,
+the user may **explicitly** configure the original module:
+
+```sh
+bash scripts/tarave-retropie-menu.sh --configure
+```
+
+This invokes `retropie_packages.sh retropiemenu configure`. It does not
+install `sixaxis`, `sixad`, or new Bluetooth drivers. Bluetooth settings
+opened *by the user* within RetroPie are otherwise managed by RetroPie
+as usual.
+
+RetroPie settings shortcuts (`.rp`) must **not** be routed through the
+generic `_SYS_` Runcommand launcher; nor should ports (`_PORT_` semantics
+are different). The bridge excludes system names `retropie` and `ports`.
+
 ### Launching
 
 Set this variable in Tarave's *startup* environment (not RetroPie's):
