@@ -15,7 +15,8 @@ For configured systems Tarave:
 - reads and writes game overrides in `/opt/retropie/configs/all/emulators.cfg`
   using Runcommand's `clean_name("${SYSTEM}_${ROM_BN}")` convention;
 - hides *unconnected* Batocera emulator/core/advanced-feature options from
-  Runcommand-backed system and game menus;
+  Runcommand-backed system and game menus, including save-state-manager
+  launches and Batocera-specific netplay commands not handled by Runcommand;
 - suppresses the unrelated global Batocera game-settings screen and hides
   emulator/core metadata-editor selectors for Runcommand-backed games;
 - keeps separate settings for systems without a RetroPie config, as well as
