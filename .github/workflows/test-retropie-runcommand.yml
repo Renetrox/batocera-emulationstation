@@ -21,3 +21,5 @@ jobs:
         run: /tmp/tarave-runcommand-test
       - name: Test RetroPie settings-menu detection
         run: bash tests/test_tarave_retropie_menu.sh
+      - name: Test standalone restart, power and language wiring
+        run: python3 tests/test_tarave_standalone_menus.py
