@@ -25,7 +25,8 @@ fi
 echo "RetroPie Setup: $packages"
 if [[ -f "$menu/rpsetup.rp" ]]; then
     printf 'RetroPie settings shortcuts: present (%s)\n' "$menu"
-    echo "Tarave will import this system when TARAVE_USE_RETROPIE_RUNCOMMAND=1"
+    echo "Tarave automatically detects RetroPie Runcommand when installed."
+    echo "Set TARAVE_USE_RETROPIE_RUNCOMMAND=0 only to disable that integration."
 else
     echo "RetroPie settings shortcuts: missing"
     echo "Use: bash $0 --configure"
