@@ -322,6 +322,10 @@ int setLocale(char * argv1)
 {
 #if WIN32
 	std::locale::global(std::locale("en-US"));
+#elif defined(TARAVE_PORTABLE_LOCALE)
+	// The portable PO loader resolves catalogs next to this executable.
+	// It follows the application's Language setting, not the host locale.
+	setlocale(LC_CTYPE, "");
 #else
 	if (Utils::FileSystem::exists("./locale/lang")) // for local builds
 		EsLocale::init("", "./locale/lang");	
