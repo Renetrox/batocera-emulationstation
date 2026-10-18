@@ -1291,7 +1291,9 @@ bool ThemeData::parseFilterAttributes(const pugi::xml_node& node)
 			}
 			catch (std::domain_error& e)
 			{
-				LOG(LogError) << "if \"" << ifAttribute << "\" expression is invalid : " << e.what();
+				LOG(LogError) << "Theme condition in " 
+					<< (mPaths.empty() ? std::string("<unknown theme>") : mPaths.back())
+					<< ": if \"" << ifAttribute << "\" expression is invalid : " << e.what();
 				return false;
 			}
 		}
