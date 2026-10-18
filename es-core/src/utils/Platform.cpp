@@ -208,7 +208,9 @@ namespace Utils
 		{
 #ifdef WIN32 // windows
 			return system("shutdown -r -t 0");
-#else // osx / linux
+#elif !defined(BATOCERA) && !defined(RETROBAT)
+			return system("systemctl --no-ask-password reboot");
+#else // original Batocera / Retrobat behavior
 			return system("shutdown -r now");
 #endif
 		}
