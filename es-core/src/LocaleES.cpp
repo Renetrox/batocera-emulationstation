@@ -272,13 +272,13 @@ void EsLocale::checkLocalisationLoaded()
 
 		std::string line;
 
-		std::ifstream file(xmlpath);
+		std::ifstream catalogStream(xmlpath);
 		std::string old_line;
 		while (1)
 		{
 			if (old_line.empty())
 			{
-				if (!std::getline(file, line)) break;
+				if (!std::getline(catalogStream, line)) break;
 			}
 			else
 			{
@@ -298,7 +298,7 @@ void EsLocale::checkLocalisationLoaded()
 					{
 						plural = line.substr(start + 7, line.size() - start - 7 - 1);
 
-						std::getline(file, line);
+						std::getline(catalogStream, line);
 						end = line.find(";", start + 1);
 						if (end != std::string::npos)
 							plural += line.substr(1, end - 1);
@@ -373,7 +373,7 @@ void EsLocale::checkLocalisationLoaded()
 						else break;
 					}
 					else break;
-				} while (std::getline(file, line));
+				} while (std::getline(catalogStream, line));
 				msgid = Utils::String::replace(msgid, "\\n", "\n");
 			}
 			else if (line.find("msgstr") == 0)
@@ -412,7 +412,7 @@ void EsLocale::checkLocalisationLoaded()
 						else break;
 					}
 					else break;
-				} while (std::getline(file, line));
+				} while (std::getline(catalogStream, line));
 				msgstr = Utils::String::replace(msgstr, "\\n", "\n");
 
 				if (!msgid.empty() && !msgstr.empty())
