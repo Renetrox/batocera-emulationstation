@@ -9,6 +9,7 @@
 #include "FileSorts.h"
 #include "GuiMetaDataEd.h"
 #include "SystemData.h"
+#include "RetroPieRuncommand.h"
 #include "LocaleES.h"
 #include "guis/GuiMenu.h"
 #include "guis/GuiMsgBox.h"
@@ -247,7 +248,9 @@ GuiGamelistOptions::GuiGamelistOptions(Window* window, IGameListView* gamelist, 
 			auto srcSystem = file->getSourceFileData()->getSystem();
 			auto sysOptions = !mSystem->isGameSystem() || mSystem->isGroupSystem() ? srcSystem : mSystem;
 
-			bool showSystemOptions = ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS) && (sysOptions->hasFeatures() || sysOptions->hasEmulatorSelection());
+			bool showSystemOptions = RetroPieRuncommand::handlesSystem(sysOptions->getName()) ||
+				(ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS) &&
+				(sysOptions->hasFeatures() || sysOptions->hasEmulatorSelection()));
 			if (showSystemOptions)
 			{
 				mMenu.addGroup(_("OPTIONS"));
