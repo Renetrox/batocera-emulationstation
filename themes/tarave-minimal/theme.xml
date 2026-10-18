@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Small, offline-safe fallback. Tarave uses its native UI elements when
+     a particular view is not specified. Downloaded themes take precedence
+     once the user selects one from UI Settings. -->
+<theme>
+    <formatVersion>7</formatVersion>
+    <view name="basic, detailed, video">
+        <text name="description">
+            <color>DEE6F2</color>
+        </text>
+    </view>
+</theme>
