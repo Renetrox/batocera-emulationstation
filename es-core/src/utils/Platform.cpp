@@ -194,7 +194,12 @@ namespace Utils
 		{
 #ifdef WIN32 // windows
 			return system("shutdown -s -t 0");
-#else // osx / linux
+#elif !defined(BATOCERA) && !defined(RETROBAT)
+			// Debian / RetroPie: ask systemd-logind to power down under
+			// the active user's existing polkit permissions. No sudoers
+			// changes and no new Bluetooth/controller services.
+			return system("systemctl --no-ask-password poweroff");
+#else // original Batocera / Retrobat behavior
 			return system("shutdown -h now");
 #endif
 		}
