@@ -101,6 +101,13 @@ if(RETROBAT)
   add_definitions(-DRETROBAT)
 endif()
 
+# Portable standalone RetroPie/Linux frontend: load the bundled .po language
+# catalogs at runtime, exactly like the Windows build. This also works when
+# gettext development/build tools are absent and leaves the installer alone.
+if(NOT BATOCERA AND NOT RETROBAT AND NOT WIN32)
+  add_definitions(-DTARAVE_PORTABLE_LOCALE)
+endif()
+
 # disable kodi menu
 if(DISABLE_KODI)
   MESSAGE("Kodi disabled")
