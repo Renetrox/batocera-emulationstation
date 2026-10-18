@@ -1,12 +1,15 @@
 # Tarave / RetroPie Runcommand integration (experimental)
 
-Branch: `experiment/retropie-runcommand-bridge`.
+Source branch consumed by the unchanged RetroPie-Extra installer:
+`experiment/retropie-standalone-20261013`.
 
 ## Overview
 
-Tarave keeps its native launcher and emulator settings unless the
-`TARAVE_USE_RETROPIE_RUNCOMMAND=1` environment variable is present **and**
-the system has a RetroPie `emulators.cfg`.
+When built by the existing RetroPie-Extra installer (non-Batocera mode), Tarave
+automatically uses Runcommand if the script is present and the system has a
+RetroPie `emulators.cfg`. The install module does not need changes.
+The environment setting `TARAVE_USE_RETROPIE_RUNCOMMAND=0` explicitly turns
+the bridge **off**. `=1` forces it **on** for tests.
 
 For configured systems Tarave:
 - launches via `/opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ SYSTEM ROM`;
@@ -66,14 +69,20 @@ are different). The bridge excludes system names `retropie` and `ports`.
 
 ### Launching
 
-Set this variable in Tarave's *startup* environment (not RetroPie's):
+The unchanged RetroPie-Extra installer launches Tarave normally:
 
 ```sh
-TARAVE_USE_RETROPIE_RUNCOMMAND=1 batocera-es-test
+batocera-es-test
 ```
 
-If the installed frontend binary has a different name, use that name instead.
-Leave the variable unset to restore the original frontend behavior.
+The Runcommand bridge is detected automatically. To compare with Tarave's
+original behavior, use:
+
+```sh
+TARAVE_USE_RETROPIE_RUNCOMMAND=0 batocera-es-test
+```
+
+Do not add export statements to the installer or modify its launch script.
 
 ### Verification
 
@@ -90,7 +99,7 @@ testing on the Orange Pi, is **still required**.
 
 1. Inspect `/opt/retropie/configs/n64/emulators.cfg` and confirm the usual
    default and installed emulator IDs are present.
-2. Run Tarave with the environment toggle enabled.
+2. Run Tarave with the unchanged `batocera-es-test` launcher.
 3. Open **Emulator Settings → Nintendo 64**. Select a different ID, close,
    and confirm only `default = "..."` changed in the N64 `emulators.cfg`.
 4. Open a game's **Advanced Game Options**, choose a different emulator, close,
@@ -101,8 +110,8 @@ testing on the Orange Pi, is **still required**.
    verify Tarave returns with working input and sound.
 7. Launch a system without a RetroPie `emulators.cfg` and verify the
    original Tarave command still works.
-8. Launch Tarave without the environment toggle and verify the native
-   emulator/core menus and launching return unchanged.
+8. Launch Tarave with `TARAVE_USE_RETROPIE_RUNCOMMAND=0` and verify that
+   native emulator/core menus and launching return unchanged.
 
 ### Boundaries
 
@@ -119,5 +128,6 @@ testing on the Orange Pi, is **still required**.
   separate adapter. The current adapter uses `_SYS_`, not `_PORT_`.
 - If an `emulators.cfg` file has no valid emulator IDs, the GUI presents an
   error instead of inventing entries.
-- The C++ integration has **not** been compiled or smoke-tested on the
-  Orange Pi yet. This branch is not merged into the original experiment.
+- The standalone C++ backend test is covered by CI, but the **full frontend**
+  still needs compilation and smoke testing on the Orange Pi. The RetroPie
+  installer script stays unchanged.
