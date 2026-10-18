@@ -280,7 +280,9 @@ namespace Utils
 
 			case QuitMode::RESTART:
 				LOG(LogInfo) << "Restarting EmulationStation";
+#if defined(WIN32) || defined(BATOCERA) || defined(RETROBAT)
 				touch("/tmp/restart.please");
+#endif
 				break;
 			case QuitMode::REBOOT:
 			case QuitMode::FAST_REBOOT:
