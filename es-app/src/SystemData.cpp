@@ -2,6 +2,7 @@
 
 #include "SystemConf.h"
 #include "RetroPieRuncommand.h"
+#include "RetroPieGamelist.h"
 #include <cstdlib>
 #include "utils/FileSystemUtil.h"
 #include "utils/ThreadPool.h"
@@ -1433,6 +1434,19 @@ SystemData* SystemData::getPrev() const
 
 std::string SystemData::getGamelistPath(bool forWrite) const
 {
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+	if (mMetadata.name == "retropie")
+	{
+		// The official RetroPie menu has its icon/descriptions in the legacy
+		// gamelist, not in es_systems.cfg. Tarave's isolated --home would
+		// otherwise display anonymous .rp entries without metadata.
+		const char* loginHome = std::getenv("HOME");
+		const std::string path = RetroPieGamelist::path(
+			forWrite, Paths::getUserEmulationStationPath(), mRootFolder->getPath(),
+			loginHome ? loginHome : "");
+		return path;
+	}
+#endif
 	std::string filePath;
 
 	filePath = mRootFolder->getPath() + "/gamelist.xml";
