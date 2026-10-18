@@ -105,6 +105,7 @@ endif()
 # catalogs at runtime, exactly like the Windows build. This also works when
 # gettext development/build tools are absent and leaves the installer alone.
 if(NOT BATOCERA AND NOT RETROBAT AND NOT WIN32)
+  set(TARAVE_PORTABLE_LOCALE TRUE)
   add_definitions(-DTARAVE_PORTABLE_LOCALE)
 endif()
 
@@ -495,7 +496,7 @@ if(NOT WIN32)
 	find_program (XGETTEXT_EXECUTABLE xgettext)
 	find_package(Intl)
 
-	if(MSGFMT_EXECUTABLE AND MSGMERGE_EXECUTABLE AND XGETTEXT_EXECUTABLE AND Intl_FOUND)
+	if(NOT TARAVE_PORTABLE_LOCALE AND MSGFMT_EXECUTABLE AND MSGMERGE_EXECUTABLE AND XGETTEXT_EXECUTABLE AND Intl_FOUND)
 	  message (STATUS "Native language support enabled.")
 	  add_definitions(-DHAVE_INTL)
 	else()
@@ -528,7 +529,7 @@ add_subdirectory("external")
 add_subdirectory("es-core")
 add_subdirectory("es-app")
 
-if(MSGFMT_EXECUTABLE AND MSGMERGE_EXECUTABLE AND XGETTEXT_EXECUTABLE AND Intl_FOUND)
+if(NOT TARAVE_PORTABLE_LOCALE AND MSGFMT_EXECUTABLE AND MSGMERGE_EXECUTABLE AND XGETTEXT_EXECUTABLE AND Intl_FOUND)
   add_subdirectory (locale)
 endif()
 
