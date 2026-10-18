@@ -305,6 +305,11 @@ namespace Utils
 			}
 		}
 
+		bool isRestartRequested()
+		{
+			return quitMode == QuitMode::RESTART;
+		}
+
 		bool isFastShutdown()
 		{
 			return quitMode == QuitMode::FAST_REBOOT || quitMode == QuitMode::FAST_SHUTDOWN;
