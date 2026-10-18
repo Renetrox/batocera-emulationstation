@@ -1371,7 +1371,7 @@ void GuiMenu::openSystemSettings()
 			FileSorts::reset();
 			MetaDataList::initMetadata();
 
-#ifdef HAVE_INTL
+#if defined(HAVE_INTL) && !defined(TARAVE_PORTABLE_LOCALE)
 			s->setVariable("exitreboot", true);
 #endif
 			s->setVariable("reloadGuiMenu", true);
