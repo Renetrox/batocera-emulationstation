@@ -26,6 +26,7 @@
 #include "SaveStateRepository.h"
 #include "guis/GuiSaveState.h"
 #include "SystemConf.h"
+#include "RetroPieRuncommand.h"
 
 GuiGameOptions::GuiGameOptions(Window* window, FileData* game) : GuiComponent(window),
 	mMenu(window, game->getName()), mReloadAll(false)
@@ -376,14 +377,16 @@ GuiGameOptions::GuiGameOptions(Window* window, FileData* game) : GuiComponent(wi
 			}
 		}
 
-		if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
+		if (RetroPieRuncommand::handlesSystem(game->getSourceFileData()->getSystem()->getName()) ||
+			ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 		{
 			auto srcSystem = game->getSourceFileData()->getSystem();
 			auto sysOptions = !mSystem->isGameSystem() ? srcSystem : mSystem;
 
 			if (game->getType() != FOLDER)
 			{
-				if (srcSystem->hasFeatures() || srcSystem->hasEmulatorSelection())
+				if (RetroPieRuncommand::handlesSystem(srcSystem->getName()) ||
+					srcSystem->hasFeatures() || srcSystem->hasEmulatorSelection())
 				{
 					mHasAdvancedGameOptions = true;
 					mMenu.addEntry(_("ADVANCED GAME OPTIONS"), false, [this, game]
