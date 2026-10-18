@@ -2,7 +2,7 @@
 #define _LOCALE_H_
 
 
-#if !defined(WIN32)
+#if !defined(WIN32) && !defined(TARAVE_PORTABLE_LOCALE)
 
 #include <string>
 
