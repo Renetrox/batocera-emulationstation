@@ -216,9 +216,25 @@ namespace Utils
 		}
 
 		static QuitMode quitMode = QuitMode::QUIT;
+		static bool powerCommandSent = false;
 
 		int quitES(QuitMode mode)
 		{
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+			// Run the power command BEFORE tearing down the GUI. Failure must
+			// leave the frontend alive so it can show a permission error.
+			if (mode == QuitMode::REBOOT || mode == QuitMode::FAST_REBOOT ||
+				mode == QuitMode::SHUTDOWN || mode == QuitMode::FAST_SHUTDOWN)
+			{
+				const bool reboot = mode == QuitMode::REBOOT || mode == QuitMode::FAST_REBOOT;
+				if ((reboot ? runRestartCommand() : runShutdownCommand()) != 0)
+				{
+					LOG(LogWarning) << "Power action refused by systemd/logind; keeping frontend open.";
+					return 1;
+				}
+				powerCommandSent = true;
+			}
+#endif
 			quitMode = mode;
 
 			switch (quitMode)
