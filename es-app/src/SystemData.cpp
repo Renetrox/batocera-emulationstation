@@ -790,7 +790,7 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
 		}
 	}
 
-#ifndef WIN32
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
     // Tarave does not install RetroPie-Setup. If the official retropiemenu
     // has already been configured, expose it even when an independent
     // es_systems_custom.cfg hides the RetroPie system from the base config.
@@ -836,56 +836,9 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
     }
 #endif
 
-#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
-	// ES-X and Tarave intentionally keep distinct user configuration folders.
-	// A custom Wine or Kodi system may live only in ES-X's original user
-	// es_systems.cfg, while Tarave reads the global RetroPie catalog.
-	// Import only these two existing system definitions, without changing
-	// either file or fabricating a Wine command on ARM devices.
-	const char* loginHome = std::getenv("HOME");
-	if (loginHome != nullptr && loginHome[0] == '/')
-	{
-		// A custom ES-X configuration takes precedence over the ordinary
-		// es_systems.cfg, just as it does in the original frontend.
-		for (const char* configName : { "es_systems_custom.cfg", "es_systems.cfg" })
-		{
-		const std::string legacyConfig = std::string(loginHome) +
-			"/.emulationstation/" + configName;
-		if (Utils::FileSystem::exists(legacyConfig))
-		{
-			pugi::xml_document legacyDoc;
-			if (legacyDoc.load_file(WINSTRINGW(legacyConfig).c_str()))
-			{
-				for (pugi::xml_node oldSystem = legacyDoc.child("systemList").child("system");
-					oldSystem; oldSystem = oldSystem.next_sibling("system"))
-				{
-					const std::string name = Utils::String::toLower(
-						Utils::String::trim(oldSystem.child("name").text().get()));
-					if (name != "wine" && name != "kodi")
-						continue;
-					bool present = false;
-					for (pugi::xml_node cur = srcSystems.child("system"); cur;
-						cur = cur.next_sibling("system"))
-					{
-						if (Utils::String::toLower(
-							Utils::String::trim(cur.child("name").text().get())) == name)
-						{
-							present = true;
-							break;
-						}
-					}
-					if (!present)
-					{
-						srcSystems.append_copy(oldSystem);
-						LOG(LogInfo) << "Tarave: using existing ES-X " << name
-							<< " system definition";
-					}
-				}
-			}
-		}
-		} // legacy configuration files
-	}
-#endif
+// Tarave is independent of ES-X. Optional imports belong in the private
+// es_systems_legacy_import.cfg supplied by its explicit import utility.
+// Never scan ~/.emulationstation merely because another frontend is installed.
 
 	// An es_systems.cfg assembled from several RetroPie modules may contain
 	// repeated <system> entries. Each would otherwise enter sSystemVector and
