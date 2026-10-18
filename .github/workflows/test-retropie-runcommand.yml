@@ -18,3 +18,5 @@ jobs:
           -o /tmp/tarave-runcommand-test
       - name: Run backend tests
         run: /tmp/tarave-runcommand-test
+      - name: Test RetroPie settings-menu detection
+        run: bash tests/test_tarave_retropie_menu.sh
