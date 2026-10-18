@@ -11,6 +11,11 @@
 int main()
 {
     using namespace RetroPieRuncommand;
+    assert(::setenv("TARAVE_USE_RETROPIE_RUNCOMMAND", "0", 1) == 0);
+    assert(!enabled());
+    assert(::setenv("TARAVE_USE_RETROPIE_RUNCOMMAND", "1", 1) == 0);
+    assert(enabled());
+    assert(::unsetenv("TARAVE_USE_RETROPIE_RUNCOMMAND") == 0);
     assert(safeId("lr-mupen64plus-next"));
     assert(!safeId("n64; rm -rf /"));
     assert(romKey("n64", "/home/pi/RetroPie/roms/n64/Super Mario 64 (USA).z64") == "n64_SuperMario64USA");
