@@ -12,8 +12,11 @@ import tempfile
 import xml.etree.ElementTree as ET
 
 DISPATCHERS = (
-    Path('/opt/retropie/supplementary/emulationstation-es-x/scripts/inputconfiguration.sh'),
+    # RetroPie is our only required integration. ES-X may not be installed.
     Path('/opt/retropie/supplementary/emulationstation/scripts/inputconfiguration.sh'),
+    # Legacy ES-X is merely a compatibility fallback when stock RetroPie
+    # configscripts are unavailable, never a prerequisite to using Tarave.
+    Path('/opt/retropie/supplementary/emulationstation-es-x/scripts/inputconfiguration.sh'),
 )
 
 
