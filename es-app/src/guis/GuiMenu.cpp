@@ -4428,7 +4428,7 @@ void GuiMenu::openQuitMenu_static(Window *window, bool quickAccessMenu, bool ani
 	if (quickAccessMenu)
 		s->addGroup(_("QUIT"));
 
-#if !defined(BATOCERA) && !defined(RETROBAT)
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
 	// The standalone RetroPie launcher is not supervised by Batocera. main()
 	// now re-execs its binary with the same --home and other arguments.
 	s->addEntry(_("RESTART EMULATIONSTATION"), false, [window] {
