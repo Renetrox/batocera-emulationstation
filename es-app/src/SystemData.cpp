@@ -1157,11 +1157,20 @@ SystemData* SystemData::loadSystem(pugi::xml_node system, bool fullMode)
 	//convert path to generic directory seperators
 	path = Utils::FileSystem::getGenericPath(path);
 
-	//expand home symbol if the startpath contains ~
-	if (path[0] == '~')
+	// Resolve ~ in system ROM paths to the *login* user's home.
+	// The RetroPie-Extra launcher passes --home <isolated frontend config>.
+	// Paths::getHomePath() therefore refers to Tarave's private config and
+	// must not be used for ~/RetroPie/roms/kodi, wine, ports, etc.
+	if (path == "~" || Utils::String::startsWith(path, "~/"))
 	{
+		std::string romHome = Paths::getHomePath();
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+		const char* loginHome = std::getenv("HOME");
+		if (loginHome != nullptr && loginHome[0] == '/')
+			romHome = loginHome;
+#endif
 		path.erase(0, 1);
-		path.insert(0, Paths::getHomePath());
+		path.insert(0, romHome);
 		path = Utils::FileSystem::getCanonicalPath(path);
 	}
 
