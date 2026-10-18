@@ -143,7 +143,8 @@ GuiGameOptions::GuiGameOptions(Window* window, FileData* game) : GuiComponent(wi
 	{
 		mMenu.addGroup(_("GAME"));
 
-		if (SaveStateRepository::isEnabled(game))
+		if (!RetroPieRuncommand::handlesSystem(game->getSourceFileData()->getSystem()->getName()) &&
+			SaveStateRepository::isEnabled(game))
 		{
 			mMenu.addEntry(_("SAVE STATES"), false, [window, game, this]
 			{
@@ -166,7 +167,8 @@ GuiGameOptions::GuiGameOptions(Window* window, FileData* game) : GuiComponent(wi
 			});
 		}
 
-		if (game->isNetplaySupported())
+		if (!RetroPieRuncommand::handlesSystem(game->getSourceFileData()->getSystem()->getName()) &&
+			game->isNetplaySupported())
 		{
 			mMenu.addEntry(_("START A NETPLAY GAME"), false, [window, game, this]
 				{
