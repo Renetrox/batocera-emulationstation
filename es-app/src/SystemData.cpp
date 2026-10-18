@@ -1,6 +1,7 @@
 #include "SystemData.h"
 
 #include "SystemConf.h"
+#include "RetroPieRuncommand.h"
 #include "utils/FileSystemUtil.h"
 #include "utils/ThreadPool.h"
 #include "CollectionSystemManager.h"
@@ -785,6 +786,48 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
 			}
 		}
 	}
+
+#ifndef WIN32
+    // Tarave does not install RetroPie-Setup. If the official retropiemenu
+    // has already been configured, expose it even when an independent
+    // es_systems_custom.cfg hides the RetroPie system from the base config.
+    // Keep this in-memory: do not overwrite the user's es_systems.cfg.
+    if (RetroPieRuncommand::enabled())
+    {
+        bool hasRetroPieSystem = false;
+        for (pugi::xml_node system = srcSystems.child("system"); system;
+             system = system.next_sibling("system"))
+        {
+            if (std::string(system.child("name").text().get()) == "retropie")
+            {
+                hasRetroPieSystem = true;
+                break;
+            }
+        }
+
+        if (!hasRetroPieSystem)
+        {
+            const std::string home = Paths::getHomePath();
+            const std::string menuDir = home + "/RetroPie/retropiemenu";
+            const std::string menuLauncher = home + "/RetroPie-Setup/retropie_packages.sh";
+            if (Utils::FileSystem::exists(menuDir + "/rpsetup.rp") &&
+                Utils::FileSystem::exists(menuLauncher))
+            {
+                pugi::xml_node system = srcSystems.append_child("system");
+                system.append_child("name").text().set("retropie");
+                system.append_child("fullname").text().set("RetroPie");
+                system.append_child("path").text().set(menuDir.c_str());
+                system.append_child("extension").text().set(".rp .sh");
+                const std::string command = "sudo " +
+                    Utils::FileSystem::getEscapedPath(menuLauncher) +
+                    " retropiemenu launch %ROM%";
+                system.append_child("command").text().set(command.c_str());
+                system.append_child("theme").text().set("retropie");
+                LOG(LogInfo) << "Tarave: importing installed RetroPie settings menu";
+            }
+        }
+    }
+#endif
 }
 
 //creates systems from information located in a config file
