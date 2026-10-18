@@ -41,8 +41,6 @@ private:
 #include <functional>
 #include "utils/StringUtil.h"
 
-#define _U(x) Utils::String::convertFromWideString(L ## x)
-
 struct PluralRule
 {
 	std::string key;
