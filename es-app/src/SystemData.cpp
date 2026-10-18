@@ -844,8 +844,12 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
 	const char* loginHome = std::getenv("HOME");
 	if (loginHome != nullptr && loginHome[0] == '/')
 	{
+		// A custom ES-X configuration takes precedence over the ordinary
+		// es_systems.cfg, just as it does in the original frontend.
+		for (const char* configName : { "es_systems_custom.cfg", "es_systems.cfg" })
+		{
 		const std::string legacyConfig = std::string(loginHome) +
-			"/.emulationstation/es_systems.cfg";
+			"/.emulationstation/" + configName;
 		if (Utils::FileSystem::exists(legacyConfig))
 		{
 			pugi::xml_document legacyDoc;
@@ -878,6 +882,7 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
 				}
 			}
 		}
+		} // legacy configuration files
 	}
 #endif
 
