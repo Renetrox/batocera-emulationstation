@@ -755,6 +755,7 @@ void ThemeData::loadFile(const std::string& system, const std::map<std::string, 
 	mSystemThemeFolder = system;
 
 	mVariables.clear();
+	mEvaluatorVariables.clear(); // Never retain another system's condition context.
 	mVariables.insert(sysDataMap.cbegin(), sysDataMap.cend());
 
 	mVariables["lang"] = mLanguage;
@@ -2699,6 +2700,10 @@ std::shared_ptr<ThemeData> ThemeData::clone(const std::string& viewName)
 	theme->mDefaultView = mDefaultView;
 	theme->mDefaultTransition = mDefaultTransition;
 	theme->mVariables = mVariables;	
+	// Theme includes and per-game overrides may evaluate conditional expressions
+	// after cloning. Preserve the typed evaluator context (screen/system/global),
+	// not only the raw placeholder strings.
+	theme->mEvaluatorVariables = mEvaluatorVariables;
 	theme->mSubsets = mSubsets;
 	theme->mColorset = mColorset;
 	theme->mIconset = mIconset;
