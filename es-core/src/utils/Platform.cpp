@@ -8,7 +8,10 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <ifaddrs.h>
+#include <net/if.h>
 #include <netinet/in.h>
+#include <sstream>
+#include "NetworkInterfaceSelection.h"
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
@@ -347,63 +350,56 @@ namespace Utils
 
 			return std::string(szLocalIP); // "127.0.0.1"
 #else
-			struct ifaddrs* ifAddrStruct = NULL;
-			struct ifaddrs* ifa = NULL;
-			void* tmpAddrPtr = NULL;
+			struct ifaddrs* list = nullptr;
+			if (getifaddrs(&list) != 0)
+				return "";
 
-			getifaddrs(&ifAddrStruct);
-
-			for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
+			std::vector<NetworkInterfaceSelection::Address> addresses;
+			for (struct ifaddrs* it = list; it != nullptr; it = it->ifa_next)
 			{
-				if (!ifa->ifa_addr)
+				if (!it->ifa_addr || !it->ifa_name || !(it->ifa_flags & IFF_UP) ||
+					(it->ifa_flags & IFF_LOOPBACK))
 					continue;
 
-				// check it is IP4 is a valid IP4 Address
-				if (ifa->ifa_addr->sa_family == AF_INET)
-				{
-					tmpAddrPtr = &((struct sockaddr_in*)ifa->ifa_addr)->sin_addr;
-					char addressBuffer[INET_ADDRSTRLEN];
-					inet_ntop(AF_INET, tmpAddrPtr, addressBuffer, INET_ADDRSTRLEN);
+				const int family = it->ifa_addr->sa_family;
+				if (family != AF_INET && family != AF_INET6)
+					continue;
 
-					std::string ifName = ifa->ifa_name;
-					if (ifName.find("eth") != std::string::npos || ifName.find("wlan") != std::string::npos || ifName.find("mlan") != std::string::npos || ifName.find("en") != std::string::npos || ifName.find("wl") != std::string::npos || ifName.find("p2p") != std::string::npos || ifName.find("usb") != std::string::npos)
-					{
-						result = std::string(addressBuffer);
-						break;
-					}
-				}
+				char ip[INET6_ADDRSTRLEN] = {};
+				const void* addr = family == AF_INET
+					? static_cast<const void*>(&reinterpret_cast<const sockaddr_in*>(it->ifa_addr)->sin_addr)
+					: static_cast<const void*>(&reinterpret_cast<const sockaddr_in6*>(it->ifa_addr)->sin6_addr);
+				if (!inet_ntop(family, addr, ip, sizeof(ip)))
+					continue;
+
+				const std::string value(ip);
+				// Neither a self-assigned IPv4 address nor an IPv6 link-local address
+				// indicates a usable connection for online services.
+				if (value == "0.0.0.0" || value.compare(0, 8, "169.254.") == 0 ||
+					value.compare(0, 5, "fe80:") == 0 || value == "::1")
+					continue;
+				addresses.push_back({ it->ifa_name, value, family == AF_INET6 });
 			}
-			// Seeking for ipv6 if no IPV4
-			if (result.empty())
+			freeifaddrs(list);
+
+			// Prefer the default-route adapter if both Wi-Fi and a USB modem
+			// are connected. Interface names are *not* restricted to eth/wlan:
+			// mobile PPP/WWAN, USB tethering and other Linux links all qualify.
+			std::string defaultInterface;
+			std::ifstream routes("/proc/net/route");
+			std::string row;
+			std::getline(routes, row); // header
+			while (std::getline(routes, row))
 			{
-				for (ifa = ifAddrStruct; ifa != NULL; ifa = ifa->ifa_next)
+				std::istringstream fields(row);
+				std::string iface, destination;
+				if (fields >> iface >> destination && destination == "00000000")
 				{
-					if (!ifa->ifa_addr)
-						continue;
-
-					// check it is IP6 is a valid IP6 Address
-					if (ifa->ifa_addr->sa_family == AF_INET6)
-					{
-						tmpAddrPtr = &((struct sockaddr_in6*)ifa->ifa_addr)->sin6_addr;
-						char addressBuffer[INET6_ADDRSTRLEN];
-						inet_ntop(AF_INET6, tmpAddrPtr, addressBuffer, INET6_ADDRSTRLEN);
-
-						// Skip IPv6 link-local address
-						if (strncmp(addressBuffer, "fe80:", 5) == 0)
-							continue;
-
-						std::string ifName = ifa->ifa_name;
-						if (ifName.find("eth") != std::string::npos || ifName.find("wlan") != std::string::npos || ifName.find("mlan") != std::string::npos || ifName.find("en") != std::string::npos || ifName.find("wl") != std::string::npos || ifName.find("p2p") != std::string::npos || ifName.find("usb") != std::string::npos)
-						{
-							result = std::string(addressBuffer);
-							break;
-						}
-					}
+					defaultInterface = iface;
+					break;
 				}
 			}
-
-			if (ifAddrStruct != NULL)
-				freeifaddrs(ifAddrStruct);
+			result = NetworkInterfaceSelection::select(addresses, defaultInterface);
 #endif
 
 			return result;
