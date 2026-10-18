@@ -39,8 +39,17 @@ inline bool enabled()
 #ifdef WIN32
     return false;
 #else
+    // The RetroPie-Extra installer intentionally stays unchanged. In this
+    // non-Batocera build detect the installed RetroPie runtime automatically.
+    // Setting the variable to 0 opts out; 1 explicitly opts in.
     const char* setting = std::getenv("TARAVE_USE_RETROPIE_RUNCOMMAND");
-    return setting != nullptr && std::string(setting) == "1";
+    if (setting != nullptr)
+        return std::string(setting) == "1";
+#if defined(BATOCERA)
+    return false;
+#else
+    return std::ifstream("/opt/retropie/supplementary/runcommand/runcommand.sh").good();
+#endif
 #endif
 }
 
