@@ -4428,9 +4428,24 @@ void GuiMenu::openQuitMenu_static(Window *window, bool quickAccessMenu, bool ani
 	if (quickAccessMenu)
 		s->addGroup(_("QUIT"));
 
+#if !defined(BATOCERA) && !defined(RETROBAT)
+	// The standalone RetroPie launcher is not supervised by Batocera. main()
+	// now re-execs its binary with the same --home and other arguments.
+	s->addEntry(_("RESTART EMULATIONSTATION"), false, [window] {
+		window->pushGui(new GuiMsgBox(window, _("REALLY RESTART EMULATIONSTATION?"),
+			_("YES"), [] { Utils::Platform::quitES(Utils::Platform::QuitMode::RESTART); },
+			_("NO"), nullptr));
+	}, "iconRestart");
+#endif
+
 	s->addEntry(_("RESTART SYSTEM"), false, [window] {
-		window->pushGui(new GuiMsgBox(window, _("REALLY RESTART?"), 
-			_("YES"), [] { Utils::Platform::quitES(Utils::Platform::QuitMode::REBOOT); },
+		window->pushGui(new GuiMsgBox(window, _("REALLY RESTART?"),
+			_("YES"), [window] {
+				if (Utils::Platform::quitES(Utils::Platform::QuitMode::REBOOT) != 0)
+					window->pushGui(new GuiMsgBox(window,
+						_("UNABLE TO RESTART SYSTEM. CHECK POWER PERMISSIONS."),
+						_("OK"), nullptr));
+			},
 			_("NO"), nullptr));
 	}, "iconRestart");
 
@@ -4444,14 +4459,24 @@ void GuiMenu::openQuitMenu_static(Window *window, bool quickAccessMenu, bool ani
 	}
 
 	s->addEntry(_("SHUTDOWN SYSTEM"), false, [window] {
-		window->pushGui(new GuiMsgBox(window, _("REALLY SHUTDOWN?"), 
-			_("YES"), [] { Utils::Platform::quitES(Utils::Platform::QuitMode::SHUTDOWN); },
+		window->pushGui(new GuiMsgBox(window, _("REALLY SHUTDOWN?"),
+			_("YES"), [window] {
+				if (Utils::Platform::quitES(Utils::Platform::QuitMode::SHUTDOWN) != 0)
+					window->pushGui(new GuiMsgBox(window,
+						_("UNABLE TO SHUT DOWN SYSTEM. CHECK POWER PERMISSIONS."),
+						_("OK"), nullptr));
+			},
 			_("NO"), nullptr));
 	}, "iconShutdown");
 
 	s->addWithDescription(_("FAST SHUTDOWN SYSTEM"),_("Shutdown without saving metadata."), nullptr, [window] {
-		window->pushGui(new GuiMsgBox(window, _("REALLY SHUTDOWN WITHOUT SAVING METADATA?"), 
-			_("YES"), [] { Utils::Platform::quitES(Utils::Platform::QuitMode::FAST_SHUTDOWN); },
+		window->pushGui(new GuiMsgBox(window, _("REALLY SHUTDOWN WITHOUT SAVING METADATA?"),
+			_("YES"), [window] {
+				if (Utils::Platform::quitES(Utils::Platform::QuitMode::FAST_SHUTDOWN) != 0)
+					window->pushGui(new GuiMsgBox(window,
+						_("UNABLE TO SHUT DOWN SYSTEM. CHECK POWER PERMISSIONS."),
+						_("OK"), nullptr));
+			},
 			_("NO"), nullptr));
 	}, "iconFastShutdown");
 
