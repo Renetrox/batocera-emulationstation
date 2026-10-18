@@ -22,6 +22,7 @@
 #include "views/ViewController.h"
 #include "ThreadedHasher.h"
 #include <unordered_set>
+#include <set>
 #include <algorithm>
 #include <functional>
 #include "SaveStateRepository.h"
@@ -833,6 +834,26 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
         }
     }
 #endif
+
+	// An es_systems.cfg assembled from several RetroPie modules may contain
+	// repeated <system> entries. Each would otherwise enter sSystemVector and
+	// produce duplicate carousel and manufacturer-navigation entries.
+	// Keep the first effective definition after custom overlays are applied.
+	// This changes only the in-memory XML, never the user's config file.
+	std::set<std::string> seenSystemIds;
+	for (pugi::xml_node system = srcSystems.child("system"); system;)
+	{
+		pugi::xml_node next = system.next_sibling("system");
+		const std::string id = Utils::String::toLower(
+			Utils::String::trim(system.child("name").text().get()));
+		if (!id.empty() && !seenSystemIds.insert(id).second)
+		{
+			LOG(LogWarning) << "Tarave: duplicate system id '" << id
+				<< "' in merged es_systems configuration; ignoring repeated entry";
+			srcSystems.remove_child(system);
+		}
+		system = next;
+	}
 }
 
 //creates systems from information located in a config file
