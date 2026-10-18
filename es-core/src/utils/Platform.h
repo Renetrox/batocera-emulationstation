@@ -47,6 +47,7 @@ namespace Utils
 
 		int quitES(QuitMode mode = QuitMode::QUIT);
 		bool isFastShutdown();
+		bool isRestartRequested();
 		void processQuitMode();
 
 		struct BatteryInformation
