@@ -72,7 +72,11 @@ private:
 	static PluralRule mPluralRule;
 };
 
+#if defined(WIN32)
 #define _U(x) Utils::String::convertFromWideString(L ## x)
+#else
+#define _U(x) x
+#endif
 
 #define _(x) EsLocale::getText(x)
 #define ngettext(A, B, C) EsLocale::nGetText(A, B, C).c_str()
