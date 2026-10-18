@@ -26,6 +26,7 @@
 #include "EmulationStation.h"
 #include "Scripting.h"
 #include "SystemData.h"
+#include "RetroPieRuncommand.h"
 #include "VolumeControl.h"
 #include <SDL_events.h>
 #include <algorithm>
@@ -173,7 +174,7 @@ GuiMenu::GuiMenu(Window *window, bool animate) : GuiComponent(window), mMenu(win
 		if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::WIFI))
 			addEntry(_("NETWORK SETTINGS").c_str(), true, [this] { openNetworkSettings(); }, "iconNetwork");
 #else
-		if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
+		if (!RetroPieRuncommand::enabled() && ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 			addEntry(_("GAME SETTINGS").c_str(), true, [this] { openGamesSettings(); }, "iconGames");
 
 		addEntry(_("USER INTERFACE SETTINGS").c_str(), true, [this] { openUISettings(); }, "iconUI");
@@ -186,13 +187,21 @@ GuiMenu::GuiMenu(Window *window, bool animate) : GuiComponent(window), mMenu(win
 		addEntry(_("SOUND SETTINGS").c_str(), true, [this] { openSoundSettings(); }, "iconSound");
 		addEntry(_("GAME COLLECTION SETTINGS").c_str(), true, [this] { openCollectionSystemSettings(); }, "iconAdvanced");
 
-		if (!ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
+		// Only show a launcher menu if it can change the emulator actually used.
+		// In Runcommand mode do not expose Batocera's disconnected core settings.
+		if (RetroPieRuncommand::enabled() || !ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 		{
 			for (auto system : SystemData::sSystemVector)
 			{
-				if (system->isCollection() || system->getEmulators().size() == 0 || (system->getEmulators().size() == 1 && system->getEmulators().begin()->cores.size() <= 1))
+				if (system->isCollection())
 					continue;
-
+				const bool retroPie = RetroPieRuncommand::handlesSystem(system->getName()) &&
+					!RetroPieRuncommand::emulators(system->getName()).empty();
+				const bool nativeOptions = !RetroPieRuncommand::enabled() &&
+					!system->getEmulators().empty() &&
+					(system->getEmulators().size() > 1 || system->getEmulators().begin()->cores.size() > 1);
+				if (!retroPie && !nativeOptions)
+					continue;
 				addEntry(_("EMULATOR SETTINGS"), true, [this] { openEmulatorSettings(); }, "iconGames");
 				break;
 			}
@@ -3029,6 +3038,11 @@ void GuiMenu::updateGameLists(Window* window, bool confirm)
 
 void GuiMenu::openSystemEmulatorSettings(SystemData* system)
 {
+	if (RetroPieRuncommand::handlesSystem(system->getName()))
+	{
+		popRetroPieEmulatorSettings(mWindow, system, nullptr);
+		return;
+	}
 	auto theme = ThemeData::getMenuTheme();
 
 	GuiSettings* s = new GuiSettings(mWindow, system->getFullName().c_str());
@@ -3117,13 +3131,13 @@ void GuiMenu::openEmulatorSettings()
 	{
 		if (system->isCollection())
 			continue;
-
-		if (system->getEmulators().size() == 0)
+		const bool retroPie = RetroPieRuncommand::handlesSystem(system->getName()) &&
+			!RetroPieRuncommand::emulators(system->getName()).empty();
+		const bool nativeOptions = !RetroPieRuncommand::enabled() &&
+			!system->getEmulators().empty() &&
+			(system->getEmulators().size() > 1 || system->getEmulators().cbegin()->cores.size() > 1);
+		if (!retroPie && !nativeOptions)
 			continue;
-
-		if (system->getEmulators().size() == 1 && system->getEmulators().cbegin()->cores.size() <= 1)
-			continue;
-
 		configuration->addEntry(system->getFullName(), true, [this, system] { openSystemEmulatorSettings(system); });
 	}
 
@@ -4491,21 +4505,75 @@ void GuiMenu::createDecorationItemTemplate(Window* window, std::vector<Decoratio
 	}
 }
 
-void GuiMenu::popSystemConfigurationGui(Window* mWindow, SystemData* systemData) 
-{  
-	popSpecificConfigurationGui(mWindow, 
-		systemData->getFullName(), 
-		systemData->getName(), 
-		systemData, 
+void GuiMenu::popRetroPieEmulatorSettings(Window* window, SystemData* system, FileData* game)
+{
+	const std::string systemName = system->getName();
+	const std::vector<std::string> choices = RetroPieRuncommand::emulators(systemName);
+	if (choices.empty())
+	{
+		window->pushGui(new GuiMsgBox(window, _("NO EMULATORS AVAILABLE FOR THIS SYSTEM"), _("OK")));
+		return;
+	}
+
+	const bool perGame = (game != nullptr);
+	const std::string rom = perGame ? game->getSourceFileData()->getPath() : "";
+	const std::string key = perGame ? RetroPieRuncommand::romKey(systemName, rom) : "default";
+	const std::string filePath = perGame ? RetroPieRuncommand::romConfig() : RetroPieRuncommand::systemConfig(systemName);
+	const std::string originalChoice = RetroPieRuncommand::getValue(filePath, key);
+
+	GuiSettings* settings = new GuiSettings(window, perGame ? game->getName() : system->getFullName());
+	if (perGame)
+		settings->setSubTitle(system->getFullName());
+
+	auto emulatorChoice = std::make_shared<OptionListComponent<std::string>>(window, _("Emulator"), false);
+	if (perGame)
+		emulatorChoice->add(_("AUTO"), "", originalChoice.empty());
+	for (const std::string& emulator : choices)
+		emulatorChoice->add(emulator, emulator, emulator == originalChoice);
+	if (!emulatorChoice->hasSelection())
+		emulatorChoice->selectFirstItem();
+
+	settings->addWithDescription(_("Emulator"), _("Managed by RetroPie Runcommand"), emulatorChoice);
+	settings->addSaveFunc([window, systemName, rom, perGame, originalChoice, emulatorChoice]
+	{
+		const std::string chosen = emulatorChoice->getSelected();
+		if (chosen == originalChoice)
+			return;
+		const bool saved = perGame ?
+			RetroPieRuncommand::setGameDefault(systemName, rom, chosen) :
+			RetroPieRuncommand::setSystemDefault(systemName, chosen);
+		if (!saved)
+			window->pushGui(new GuiMsgBox(window, _("COULD NOT SAVE RETROPIE EMULATOR SETTINGS"), _("OK")));
+	});
+	window->pushGui(settings);
+}
+
+void GuiMenu::popSystemConfigurationGui(Window* mWindow, SystemData* systemData)
+{
+	if (RetroPieRuncommand::handlesSystem(systemData->getName()))
+	{
+		popRetroPieEmulatorSettings(mWindow, systemData, nullptr);
+		return;
+	}
+	popSpecificConfigurationGui(mWindow,
+		systemData->getFullName(),
+		systemData->getName(),
+		systemData,
 		nullptr);
 }
 
 void GuiMenu::popGameConfigurationGui(Window* mWindow, FileData* fileData)
 {
+	SystemData* system = fileData->getSourceFileData()->getSystem();
+	if (RetroPieRuncommand::handlesSystem(system->getName()))
+	{
+		popRetroPieEmulatorSettings(mWindow, system, fileData);
+		return;
+	}
 	popSpecificConfigurationGui(mWindow,
 		fileData->getName(),
 		fileData->getConfigurationName(),
-		fileData->getSourceFileData()->getSystem(),
+		system,
 		fileData);
 }
 
