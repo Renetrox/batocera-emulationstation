@@ -852,6 +852,19 @@ int main(int argc, char* argv[])
 
 	Utils::Platform::processQuitMode();
 
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+	// Standalone RetroPie launches us directly, not via Batocera's restart
+	// supervisor. Re-exec the same binary with its original --home arguments.
+	if (Utils::Platform::isRestartRequested())
+	{
+		LOG(LogInfo) << "Restarting Tarave standalone frontend";
+		Log::flush();
+		execv("/proc/self/exe", argv);
+		LOG(LogError) << "Could not restart frontend: " << std::strerror(errno);
+		return 1;
+	}
+#endif
+
 	LOG(LogInfo) << "EmulationStation cleanly shutting down.";
 
 	return 0;
