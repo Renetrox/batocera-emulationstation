@@ -23,3 +23,19 @@ jobs:
         run: bash tests/test_tarave_retropie_menu.sh
       - name: Test standalone restart, power and language wiring
         run: python3 tests/test_tarave_standalone_menus.py
+      - name: Test network interface selection (PPP/WWAN/USB/IPv6)
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
+            tests/test_tarave_network_selection.cpp -o /tmp/tarave-network-test
+          /tmp/tarave-network-test
+      - name: Verify isolated configuration resolves RetroPie ROM paths
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          code = Path("es-app/src/SystemData.cpp").read_text()
+          assert 'const char* loginHome = std::getenv("HOME")' in code
+          assert 'romHome = loginHome;' in code
+          assert '"wine" && name != "kodi"' in code
+          assert 'srcSystems.append_copy(oldSystem);' in code
+          PY
+
