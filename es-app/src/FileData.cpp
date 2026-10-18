@@ -23,6 +23,8 @@
 #include "ApiSystem.h"
 #include <time.h>
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include "LangParser.h"
 #include "resources/ResourceManager.h"
 #include "RetroAchievements.h"
@@ -479,6 +481,33 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 	SystemData* system = gameToUpdate->getSystem();
 	if (system == nullptr)
 		return "";
+
+#ifndef WIN32
+	// Optional RetroPie launcher bridge. RetroPie owns emulator selection through
+	// /opt/retropie/configs/<system>/emulators.cfg, including runcommand's
+	// launch-time emulator picker. Keep Batocera's original commands as the
+	// default and as the fallback for systems without RetroPie configuration.
+	const char* retroPieBridge = std::getenv("TARAVE_USE_RETROPIE_RUNCOMMAND");
+	if (retroPieBridge != nullptr && std::string(retroPieBridge) == "1")
+	{
+		const std::string systemName = system->getName();
+		const bool safeSystemName = !systemName.empty() &&
+			std::all_of(systemName.begin(), systemName.end(), [](unsigned char c) {
+				return std::isalnum(c) || c == '_' || c == '-';
+			});
+		const std::string runcommand = "/opt/retropie/supplementary/runcommand/runcommand.sh";
+		const std::string emulatorsCfg = "/opt/retropie/configs/" + systemName + "/emulators.cfg";
+		if (safeSystemName && Utils::FileSystem::exists(runcommand) && Utils::FileSystem::exists(emulatorsCfg))
+		{
+			LOG(LogInfo) << "Tarave: launching " << systemName << " with RetroPie runcommand";
+			return runcommand + " 0 _SYS_ " + systemName + " " +
+				Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
+		}
+
+		LOG(LogWarning) << "Tarave: RetroPie runcommand not configured for system '"
+			<< systemName << "'; using original launch command";
+	}
+#endif
 
 	// must really;-) be done before window->deinit while it closes joysticks
 	std::string controllersConfig = InputManager::getInstance()->configureEmulators();
