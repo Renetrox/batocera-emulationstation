@@ -835,6 +835,52 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
     }
 #endif
 
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+	// ES-X and Tarave intentionally keep distinct user configuration folders.
+	// A custom Wine or Kodi system may live only in ES-X's original user
+	// es_systems.cfg, while Tarave reads the global RetroPie catalog.
+	// Import only these two existing system definitions, without changing
+	// either file or fabricating a Wine command on ARM devices.
+	const char* loginHome = std::getenv("HOME");
+	if (loginHome != nullptr && loginHome[0] == '/')
+	{
+		const std::string legacyConfig = std::string(loginHome) +
+			"/.emulationstation/es_systems.cfg";
+		if (Utils::FileSystem::exists(legacyConfig))
+		{
+			pugi::xml_document legacyDoc;
+			if (legacyDoc.load_file(WINSTRINGW(legacyConfig).c_str()))
+			{
+				for (pugi::xml_node oldSystem = legacyDoc.child("systemList").child("system");
+					oldSystem; oldSystem = oldSystem.next_sibling("system"))
+				{
+					const std::string name = Utils::String::toLower(
+						Utils::String::trim(oldSystem.child("name").text().get()));
+					if (name != "wine" && name != "kodi")
+						continue;
+					bool present = false;
+					for (pugi::xml_node cur = srcSystems.child("system"); cur;
+						cur = cur.next_sibling("system"))
+					{
+						if (Utils::String::toLower(
+							Utils::String::trim(cur.child("name").text().get())) == name)
+						{
+							present = true;
+							break;
+						}
+					}
+					if (!present)
+					{
+						srcSystems.append_copy(oldSystem);
+						LOG(LogInfo) << "Tarave: using existing ES-X " << name
+							<< " system definition";
+					}
+				}
+			}
+		}
+	}
+#endif
+
 	// An es_systems.cfg assembled from several RetroPie modules may contain
 	// repeated <system> entries. Each would otherwise enter sSystemVector and
 	// produce duplicate carousel and manufacturer-navigation entries.
