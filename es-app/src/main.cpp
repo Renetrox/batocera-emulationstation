@@ -42,6 +42,11 @@
 #include "watchers/WatchersManager.h"
 #include "HttpReq.h"
 #include <thread>
+#if !defined(WIN32)
+#include <unistd.h>
+#include <cerrno>
+#include <cstring>
+#endif
 
 #ifdef WIN32
 #include <Windows.h>
