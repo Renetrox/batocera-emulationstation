@@ -2,6 +2,7 @@
 
 #include "SystemConf.h"
 #include "RetroPieRuncommand.h"
+#include <cstdlib>
 #include "utils/FileSystemUtil.h"
 #include "utils/ThreadPool.h"
 #include "CollectionSystemManager.h"
@@ -807,10 +808,14 @@ void SystemData::loadAdditionnalConfig(pugi::xml_node& srcSystems)
 
         if (!hasRetroPieSystem)
         {
-            const std::string home = Paths::getHomePath();
+            // --home points to Tarave isolated settings, not the RetroPie home.
+            // Use the actual login HOME while keeping the installer intact.
+            const char* realHome = std::getenv("HOME");
+            const std::string home = realHome ? realHome : "";
             const std::string menuDir = home + "/RetroPie/retropiemenu";
             const std::string menuLauncher = home + "/RetroPie-Setup/retropie_packages.sh";
-            if (Utils::FileSystem::exists(menuDir + "/rpsetup.rp") &&
+            if (!home.empty() &&
+                Utils::FileSystem::exists(menuDir + "/rpsetup.rp") &&
                 Utils::FileSystem::exists(menuLauncher))
             {
                 pugi::xml_node system = srcSystems.append_child("system");
