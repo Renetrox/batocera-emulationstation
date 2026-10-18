@@ -40,6 +40,12 @@ private:
 #include <map>
 #include <functional>
 #include "utils/StringUtil.h"
+#if defined(TARAVE_PORTABLE_LOCALE)
+// Parse libc's ngettext declaration BEFORE defining our runtime PO adapter.
+// Otherwise later system headers would expand the ngettext() macro inside
+// their function prototype (the compile failure in MetaData.cpp).
+#include <libintl.h>
+#endif
 
 struct PluralRule
 {
