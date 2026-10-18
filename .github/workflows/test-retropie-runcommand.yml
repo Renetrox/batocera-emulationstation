@@ -33,14 +33,26 @@ jobs:
           g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
             tests/test_tarave_retropie_gamelist.cpp -o /tmp/tarave-gamelist-test
           /tmp/tarave-gamelist-test
-      - name: Verify isolated configuration resolves RetroPie ROM paths
+      - name: Verify isolated system path expansion and no ES-X implicit imports
         run: |
           python3 - <<'PY'
           from pathlib import Path
           code = Path("es-app/src/SystemData.cpp").read_text()
-          assert 'const char* loginHome = std::getenv("HOME")' in code
           assert 'romHome = loginHome;' in code
-          assert '"wine" && name != "kodi"' in code
-          assert 'srcSystems.append_copy(oldSystem);' in code
+          assert 'es_systems_legacy_import.cfg' in code
+          assert 'srcSystems.append_copy(oldSystem);' not in code
+          assert 'for (const char* configName' not in code
+          PY
+      - name: Test optional one-time Wine/Kodi import into private catalog
+        run: python3 -m unittest discover -s tests -p test_tarave_import_legacy_systems.py -v
+      - name: Validate bundled minimal offline theme
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          root = ET.parse("themes/tarave-minimal/theme.xml").getroot()
+          assert root.tag == "theme" and root.findtext("formatVersion") == "7"
+          assert (Path("resources") / "window_icon_256.png").is_file()
+          assert (Path("resources") / "tarave-import-legacy-systems.py").is_file()
           PY
 
