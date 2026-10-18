@@ -296,8 +296,11 @@ namespace Utils
 			case QuitMode::SHUTDOWN:
 			case QuitMode::FAST_SHUTDOWN:
 				LOG(LogInfo) << "Shutting system down";
-				touch("/tmp/shutdown.please");
-				runShutdownCommand();
+				if (!powerCommandSent)
+				{
+					touch("/tmp/shutdown.please");
+					runShutdownCommand();
+				}
 				break;
 			}
 		}
