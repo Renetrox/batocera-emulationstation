@@ -1,0 +1,42 @@
+name: Build Tarave standalone on Linux
+
+on:
+  push:
+    branches:
+      - experiment/retropie-standalone-20261013
+    paths:
+      - 'CMakeLists.txt'
+      - 'es-app/**'
+      - 'es-core/**'
+      - 'external/**'
+      - 'locale/**'
+      - '.github/workflows/build-tarave-standalone.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install RetroPie desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            git build-essential cmake pkg-config python3 gettext \
+            libsdl2-dev libsdl2-mixer-dev \
+            libfreeimage-dev libfreetype6-dev libcurl4-openssl-dev \
+            rapidjson-dev libasound2-dev libpulse-dev \
+            libgl1-mesa-dev libgles2-mesa-dev libegl1-mesa-dev \
+            libvlc-dev libvlccore-dev vlc-bin libudev-dev
+      - name: Configure portable RetroPie build
+        run: |
+          cmake -S . -B build \
+            -DCMAKE_BUILD_TYPE=Release -DBATOCERA=OFF -DRETROBAT=OFF \
+            -DDISABLE_KODI=ON -DENABLE_FILEMANAGER=OFF \
+            -DENABLE_TTS=OFF -DCEC=OFF \
+            -DGL=ON -DGLES=OFF -DGLES2=OFF
+      - name: Compile complete frontend
+        run: cmake --build build --target emulationstation --parallel 2
