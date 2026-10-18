@@ -84,9 +84,11 @@ inline std::string romConfig()
 
 inline bool handlesSystem(const std::string& system)
 {
-    // RetroPie settings menu uses its own .rp launcher. Ports require _PORT_
-    // or their original .sh launchers, not the generic _SYS_ path.
-    if (system == "retropie" || system == "ports")
+    // Keep custom application launcher commands as configured by RetroPie
+    // or ES-X. Settings shortcuts, ports, Kodi and Wine launchers do not use
+    // the ordinary game _SYS_ Runcommand contract.
+    if (system == "retropie" || system == "ports" ||
+        system == "kodi" || system == "wine")
         return false;
     return enabled() && safeId(system) &&
         exists("/opt/retropie/supplementary/runcommand/runcommand.sh") &&
