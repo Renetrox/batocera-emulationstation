@@ -210,7 +210,7 @@ GuiMenu::GuiMenu(Window *window, bool animate) : GuiComponent(window), mMenu(win
 					continue;
 				const bool retroPie = RetroPieRuncommand::handlesSystem(system->getName()) &&
 					!RetroPieRuncommand::emulators(system->getName()).empty();
-				const bool nativeOptions = !RetroPieRuncommand::enabled() &&
+				const bool nativeOptions = !RetroPieRuncommand::handlesSystem(system->getName()) &&
 					!system->getEmulators().empty() &&
 					(system->getEmulators().size() > 1 || system->getEmulators().begin()->cores.size() > 1);
 				if (!retroPie && !nativeOptions)
@@ -3146,7 +3146,7 @@ void GuiMenu::openEmulatorSettings()
 			continue;
 		const bool retroPie = RetroPieRuncommand::handlesSystem(system->getName()) &&
 			!RetroPieRuncommand::emulators(system->getName()).empty();
-		const bool nativeOptions = !RetroPieRuncommand::enabled() &&
+		const bool nativeOptions = !RetroPieRuncommand::handlesSystem(system->getName()) &&
 			!system->getEmulators().empty() &&
 			(system->getEmulators().size() > 1 || system->getEmulators().cbegin()->cores.size() > 1);
 		if (!retroPie && !nativeOptions)
