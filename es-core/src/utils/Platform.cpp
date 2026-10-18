@@ -216,23 +216,21 @@ namespace Utils
 		}
 
 		static QuitMode quitMode = QuitMode::QUIT;
-		static bool powerCommandSent = false;
 
 		int quitES(QuitMode mode)
 		{
 #if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
-			// Run the power command BEFORE tearing down the GUI. Failure must
-			// leave the frontend alive so it can show a permission error.
+			// Fail early only when systemd is absent. The actual power request
+			// MUST run after the frontend has saved metadata and released SDL.
 			if (mode == QuitMode::REBOOT || mode == QuitMode::FAST_REBOOT ||
 				mode == QuitMode::SHUTDOWN || mode == QuitMode::FAST_SHUTDOWN)
 			{
-				const bool reboot = mode == QuitMode::REBOOT || mode == QuitMode::FAST_REBOOT;
-				if ((reboot ? runRestartCommand() : runShutdownCommand()) != 0)
+				if (access("/usr/bin/systemctl", X_OK) != 0 &&
+					access("/bin/systemctl", X_OK) != 0)
 				{
-					LOG(LogWarning) << "Power action refused by systemd/logind; keeping frontend open.";
+					LOG(LogWarning) << "Cannot power off or reboot: systemctl not installed.";
 					return 1;
 				}
-				powerCommandSent = true;
 			}
 #endif
 			quitMode = mode;
@@ -287,20 +285,16 @@ namespace Utils
 			case QuitMode::REBOOT:
 			case QuitMode::FAST_REBOOT:
 				LOG(LogInfo) << "Rebooting system";
-				if (!powerCommandSent)
-				{
-					touch("/tmp/reboot.please");
-					runRestartCommand();
-				}
+				touch("/tmp/reboot.please");
+				if (runRestartCommand() != 0)
+					LOG(LogError) << "System reboot failed. Check systemd/logind permissions.";
 				break;
 			case QuitMode::SHUTDOWN:
 			case QuitMode::FAST_SHUTDOWN:
 				LOG(LogInfo) << "Shutting system down";
-				if (!powerCommandSent)
-				{
-					touch("/tmp/shutdown.please");
-					runShutdownCommand();
-				}
+				touch("/tmp/shutdown.please");
+				if (runShutdownCommand() != 0)
+					LOG(LogError) << "System poweroff failed. Check systemd/logind permissions.";
 				break;
 			}
 		}
