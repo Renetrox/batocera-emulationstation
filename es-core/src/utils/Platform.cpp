@@ -287,8 +287,11 @@ namespace Utils
 			case QuitMode::REBOOT:
 			case QuitMode::FAST_REBOOT:
 				LOG(LogInfo) << "Rebooting system";
-				touch("/tmp/reboot.please");
-				runRestartCommand();
+				if (!powerCommandSent)
+				{
+					touch("/tmp/reboot.please");
+					runRestartCommand();
+				}
 				break;
 			case QuitMode::SHUTDOWN:
 			case QuitMode::FAST_SHUTDOWN:
