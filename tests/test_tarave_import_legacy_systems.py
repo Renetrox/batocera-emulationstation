@@ -4,6 +4,7 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 TOOL = Path(__file__).resolve().parents[1] / "resources/tarave-import-legacy-systems.py"
 spec = importlib.util.spec_from_file_location("tarave_import", TOOL)
@@ -32,13 +33,40 @@ class ImportTests(unittest.TestCase):
             base = shared.read_bytes()
             output = home / ".local/share/batocera-es-test/.emulationstation/es_systems_legacy_import.cfg"
             names = app.import_systems(home, output, shared)
-            self.assertEqual(names, ["wine"])
+            self.assertEqual(names, ["nes", "wine"])
             self.assertIn(b"<name>wine</name>", output.read_bytes())
-            self.assertNotIn(b"<name>nes</name>", output.read_bytes())
+            self.assertIn(b"<name>nes</name>", output.read_bytes())
             self.assertEqual(custom.read_bytes(), original)
             self.assertEqual(shared.read_bytes(), base)
-            with self.assertRaises(FileExistsError):
-                app.import_systems(home, output, shared)
+            self.assertEqual(app.import_systems(home, output, shared), [])
+
+    def test_append_new_missing_system_without_overwriting_prior_import(self):
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            legacy = home / ".emulationstation"
+            legacy.mkdir(parents=True)
+            original = legacy / "es_systems_custom.cfg"
+            original.write_text(
+                '<systemList><system><name>wine</name><path>~/RetroPie/roms/wine</path>'
+                '<extension>.sh</extension><command>wine %ROM%</command></system></systemList>')
+            catalog = home / "shared.cfg"
+            catalog.write_text("<systemList/>")
+            target = home / "tarave/es_systems_legacy_import.cfg"
+            self.assertEqual(app.import_systems(home, target, catalog), ["wine"])
+            tree = ET.parse(target)
+            tree.find("./system/command").text = "custom Tarave override"
+            tree.write(target)
+            original.write_text(
+                '<systemList><system><name>wine</name><path>~/RetroPie/roms/wine</path>'
+                '<extension>.sh</extension><command>new wine</command></system>'
+                '<system><name>openbor</name><path>~/RetroPie/roms/openbor</path>'
+                '<extension>.pak</extension><command>openbor %ROM%</command></system>'
+                '</systemList>')
+            self.assertEqual(app.import_systems(home, target, catalog), ["openbor"])
+            result = ET.parse(target)
+            by_name = {system.findtext("name"): system for system in result.findall("system")}
+            self.assertEqual(by_name["wine"].findtext("command"), "custom Tarave override")
+            self.assertEqual(by_name["openbor"].findtext("command"), "openbor %ROM%")
 
     def test_absent_prior_frontend_no_dependency(self):
         with tempfile.TemporaryDirectory() as directory:
