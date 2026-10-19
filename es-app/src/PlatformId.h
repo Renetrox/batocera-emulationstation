@@ -178,6 +178,8 @@ namespace PlatformIds
 
 		TEKNOPARROT,
 
+		J2ME, // Java ME / MIDP games
+
 		PLATFORM_IGNORE, // do not allow scraping for this system
 		PLATFORM_COUNT
 	};
