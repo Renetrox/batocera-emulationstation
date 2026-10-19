@@ -23,6 +23,8 @@ jobs:
         run: bash tests/test_tarave_retropie_menu.sh
       - name: Test standalone restart, power and language wiring
         run: python3 tests/test_tarave_standalone_menus.py
+      - name: Ensure direct binary uses Tarave private home and --home overrides
+        run: python3 tests/test_tarave_home_isolation.py
       - name: Test network interface selection (PPP/WWAN/USB/IPv6)
         run: |
           g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
