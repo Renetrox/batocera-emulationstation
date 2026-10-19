@@ -1159,6 +1159,11 @@ SystemData* SystemData::loadSystem(pugi::xml_node system, bool fullMode)
 			LOG(LogWarning) << "  Unknown platform for system \"" << md.name << "\" (platform \"" << str << "\" from list \"" << platformList << "\")";
 	}
 
+	// Some RetroPie J2ME definitions omit <platform>. Keep the J2ME system
+	// eligible for platform-aware scraping without changing other systems.
+	if (platformIds.empty() && Utils::String::toLower(md.name) == "j2me")
+		platformIds.insert(PlatformIds::J2ME);
+
 	//convert path to generic directory seperators
 	path = Utils::FileSystem::getGenericPath(path);
 
