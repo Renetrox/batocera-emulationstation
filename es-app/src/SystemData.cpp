@@ -1400,20 +1400,30 @@ std::string SystemData::getGamelistPath(bool forWrite) const
 		return path;
 	}
 #endif
-	std::string filePath;
-
-	filePath = mRootFolder->getPath() + "/gamelist.xml";
-	if(Utils::FileSystem::exists(filePath))
-		return filePath;
-
+	std::string filePath = mRootFolder->getPath() + "/gamelist.xml";
 	std::string localPath = Paths::getUserEmulationStationPath() + "/gamelists/" + mMetadata.name + "/gamelist.xml";
+
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+	// Tarave imports installed RetroPie gamelists into its own --home once.
+	// Prefer this private copy for every system (Wine, Kodi, Ports, etc.) so
+	// the imported names, descriptions and images remain visible.
+	// NEVER write gamelist changes back into RetroPie's shared ROM directory.
+	if (forWrite)
+		return localPath;
 	if (Utils::FileSystem::exists(localPath))
 		return localPath;
-
+	if (Utils::FileSystem::exists(filePath))
+		return filePath;
+	return localPath;
+#else
+	if (Utils::FileSystem::exists(filePath))
+		return filePath;
+	if (Utils::FileSystem::exists(localPath))
+		return localPath;
 	if (forWrite)
 		Utils::FileSystem::createDirectory(Utils::FileSystem::getParent(filePath));
-	
 	return filePath;
+#endif
 }
 
 std::string SystemData::getThemePath() const
