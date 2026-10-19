@@ -13,7 +13,7 @@ RetroPie when using Runcommand.
 | Installs a default Carbon theme via `esthemes` in global `/etc/emulationstation/themes` | Keeps users' theme choice, uses installed RetroPie theme if available, otherwise seeds a tiny offline theme in Tarave's private folder |
 | `moveConfigDir` binds `~/.emulationstation` to `/opt/retropie/configs/all/emulationstation` | **Never** moves, replaces or links the main `~/.emulationstation` directory; uses `~/.local/share/batocera-es-test/.emulationstation` |
 | RetroPie system catalog and runcommand | Read-only symlink from private Tarave config to `/opt/retropie/configs/all/emulationstation/es_systems.cfg` if present; otherwise system catalog from `/etc/emulationstation` |
-| RetroPie `retropiemenu` gamelist generated in global RetroPie config (names, descriptions, absolute PNG icons) | Looks up the installed RetroPie menu gamelist for **reading only**. Tarave edits stay private. |
+| RetroPie `retropiemenu` gamelist generated in global RetroPie config (names, descriptions, absolute PNG icons) | At configure time imports missing files from previous `gamelists/` (Wine, Kodi, Ports and all systems), then merges official RetroPie Setup menu metadata into Tarave's **private** `gamelists/retropie/gamelist.xml`. User edits and old files are retained. |
 | Installs input configuration hooks and configurators | Native controller configuration stays private. Its explicit bridge uses stock RetroPie configurators when available; does not change/overwrite ES-X `es_input.cfg`. |
 | Owns `/usr/bin/emulationstation`, RetroPie desktop entry | `/usr/local/bin/batocera-es-test`, separate desktop entry; optional user-requested switch to default with previous launcher backup and rollback |
 | EmulationStation uses RetroPie-provided shell launch wrapper | Tarave invokes its installed executable with isolated `--home` and preserves original command args; standalone restart re-execs itself |
@@ -36,17 +36,33 @@ Do not use `moveConfigDir`, `configure_emulationstation`, or the
 for the main RetroPie frontend and can alter ES-X's directories, controllers,
 or default theme.
 
-## Optional legacy importer
+## Previous RetroPie gamelists and missing system definitions
 
-`batocera-es-test --import-legacy-systems`
+On installation/configuration, the Tarave module copies **all missing regular
+files** in previous `~/.emulationstation/gamelists/` and
+`/opt/retropie/configs/all/emulationstation/gamelists/` into the Tarave private
+folder. It never overwrites existing files. Symlinked individual files and
+directories are skipped for safety; the main legacy folder may be a RetroPie
+symlink. A clean installation with no prior gamelists still tries to import
+`gamelists/retropie/gamelist.xml` from the installed RetroPie menu, including
+the RetroPie Setup entry and PNG icon paths.
 
-This is **not** part of the install or startup path. It imports only missing
-`wine` and `kodi` system definitions from existing legacy
-`~/.emulationstation/es_systems_custom.cfg` /
-`es_systems.cfg` files. It writes **only**
-`~/.local/share/batocera-es-test/.emulationstation/es_systems_legacy_import.cfg`,
-refuses to overwrite that destination, and never edits ES-X or RetroPie files.
-If none of the old files exist, Tarave remains usable normally.
+Only **at install/configure time** (not on every frontend launch), Tarave
+reads the older `es_systems_custom.cfg` and `es_systems.cfg` to import
+missing complete system definitions, not just Wine/Kodi; custom names in
+the base RetroPie system catalog remain authoritative. It writes only:
+`~/.local/share/batocera-es-test/.emulationstation/es_systems_legacy_import.cfg`.
+If the private file already exists, additional missing definitions may be
+merged, but existing user-defined entries are never replaced.
+
+Run `batocera-es-test --sync-gamelists` to refresh all missing gamelists
+without rebuilding Tarave, or `--sync-retropie-menu` for just the RetroPie
+Setup metadata. Use `batocera-es-test --import-legacy-systems` to refresh
+missing user systems. All three commands preserve the original source files.
+
+The frontend prefers **private gamelists first** and writes metadata there;
+if no private file exists for a system it can still read an existing ROM-folder
+gamelist. This separation does not duplicate ROMs or emulators.
 
 `batocera-es-test --retropie-menu-check` checks existing official RetroPie
 configuration-menu shortcuts. It makes no changes. The bundled
