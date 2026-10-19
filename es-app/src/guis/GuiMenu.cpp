@@ -189,6 +189,14 @@ GuiMenu::GuiMenu(Window *window, bool animate) : GuiComponent(window), mMenu(win
 #else
 		if (!RetroPieRuncommand::enabled() && ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 			addEntry(_("GAME SETTINGS").c_str(), true, [this] { openGamesSettings(); }, "iconGames");
+		else
+		{
+			// Standalone RetroPie has no Batocera GAMESETTINGS service, and we
+			// intentionally hide the disconnected emulator/core settings. But
+			// the scraper still tells users to UPDATE GAMELISTS. Expose that
+			// operation directly rather than hiding it inside GAME SETTINGS.
+			addEntry(_("UPDATE GAMELISTS"), true, [window] { updateGameLists(window); }, "iconGames");
+		}
 
 		addEntry(_("USER INTERFACE SETTINGS").c_str(), true, [this] { openUISettings(); }, "iconUI");
 
@@ -3043,6 +3051,19 @@ void GuiMenu::updateGameLists(Window* window, bool confirm)
 
 	window->pushGui(new GuiMsgBox(window, _("REALLY UPDATE GAMELISTS?"), _("YES"), [window]
 		{
+#if !defined(WIN32) && !BATOCERA && !RETROBAT
+			// RetroPie standalone does not run Batocera's gamelist hooks. Save
+			// pending scrape metadata *before* the full reload deletes FileData,
+			// regardless of the user's unrelated "save on exit" setting.
+			// SystemData::getGamelistPath(true) resolves into Tarave's private
+			// --home, never the shared ROM folder or ES-X configuration.
+			if (!Settings::IgnoreGamelist())
+			{
+				for (SystemData* system : SystemData::sSystemVector)
+					if (system->isGameSystem() && !system->isCollection())
+						updateGamelist(system);
+			}
+#endif
 			Scripting::fireEvent("update-gamelists");
 			ViewController::reloadAllGames(window, true, true);
 		}, 
