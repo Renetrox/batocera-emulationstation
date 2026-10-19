@@ -51,6 +51,7 @@ const std::map<PlatformId, unsigned short> screenscraper_platformid_map{
 	{ COLECOVISION, 48 },
 	{ COMMODORE_64, 66 },
 	{ INTELLIVISION, 115 },
+	{ J2ME, 302 }, // Java ME / MIDP (as in ES-X)
 	{ MAC_OS, 146 },
 	{ XBOX, 32 },
 	{ XBOX_360, 33 },
