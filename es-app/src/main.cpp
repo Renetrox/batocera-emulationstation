@@ -21,6 +21,7 @@
 #include <SDL_main.h>
 #include <SDL_timer.h>
 #include <iostream>
+#include <cstdlib>
 #include <time.h>
 #include "LocaleES.h"
 #include <SystemConf.h>
@@ -61,6 +62,24 @@ static bool enable_startup_game = true;
 bool parseArgs(int argc, char* argv[])
 {
 	Paths::setExePath(argv[0]);
+
+#if !defined(WIN32) && !defined(BATOCERA) && !defined(RETROBAT)
+	// Tarave is a standalone RetroPie frontend. Even when started directly as
+	// /opt/retropie/supplementary/batocera-es-test/emulationstation, never
+	// default to ES/ES-X's ~/.emulationstation. The generated .sh launcher
+	// already uses this private --home; keep both entrypoints consistent.
+	// BATOCERA_ES_TEST_HOME is an optional override (also used by the launcher).
+	// An explicit --home argument below always takes precedence.
+	const char* taraveHome = std::getenv("BATOCERA_ES_TEST_HOME");
+	if (taraveHome != nullptr && taraveHome[0] != '\0')
+		Paths::setHomePath(taraveHome);
+	else
+	{
+		const char* loginHome = std::getenv("HOME");
+		if (loginHome != nullptr && loginHome[0] != '\0')
+			Paths::setHomePath(std::string(loginHome) + "/.local/share/batocera-es-test");
+	}
+#endif
 
 	// We need to process --home before any call to Settings::getInstance(), because settings are loaded from homepath
 	for (int i = 1; i < argc; i++)
