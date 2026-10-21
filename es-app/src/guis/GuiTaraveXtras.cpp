@@ -1,0 +1,1365 @@
+// es-app/src/guis/GuiTaraveXtras.cpp
+#include "guis/GuiTaraveXtras.h"
+
+#include "Log.h"
+#include "Window.h"
+#include "resources/Font.h"
+#include "utils/FileSystemUtil.h"
+#include "renderers/Renderer.h"
+#include "components/BusyComponent.h"
+#include "guis/GuiInfoPopup.h"
+#include "guis/GuiMsgBox.h"
+#include "LocaleES.h"
+#include "Paths.h"
+#include "resources/ResourceManager.h"
+
+#include <algorithm>
+#include <cstdlib>
+#include <fstream>
+#include <sstream>
+#include <unistd.h>
+#include <cctype>
+#include <signal.h>
+#include <fcntl.h>
+#include <cstring>
+#include <chrono>
+
+static inline std::string trPorts(const std::string& key)
+{
+    return LocaleES::getInstance().translate(key);
+}
+
+static inline std::string trimPorts(const std::string& s)
+{
+    size_t b = s.find_first_not_of(" \t\r\n");
+    if (b == std::string::npos)
+        return "";
+
+    size_t e = s.find_last_not_of(" \t\r\n");
+    return s.substr(b, (e - b) + 1);
+}
+
+static inline std::string ellipsizePorts(const std::string& s, size_t maxLen)
+{
+    if (s.size() <= maxLen)
+        return s;
+
+    if (maxLen <= 3)
+        return s.substr(0, maxLen);
+
+    return s.substr(0, maxLen - 3) + "...";
+}
+
+static inline std::string quotePorts(const std::string& s)
+{
+    std::string out = "'";
+    for (char c : s)
+    {
+        if (c == '\'')
+            out += "'\\''";
+        else
+            out += c;
+    }
+    out += "'";
+    return out;
+}
+
+static bool parseShellAssignment(const std::string& rawLine,
+                                 const std::string& key,
+                                 std::string& value)
+{
+    std::string line = trimPorts(rawLine);
+    const std::string prefix = key + "=";
+
+    if (line.compare(0, prefix.size(), prefix) != 0)
+        return false;
+
+    value = trimPorts(line.substr(prefix.size()));
+
+    if (value.size() >= 2)
+    {
+        const char first = value.front();
+        const char last = value.back();
+
+        if ((first == '"' && last == '"') ||
+            (first == '\'' && last == '\''))
+        {
+            value = value.substr(1, value.size() - 2);
+        }
+    }
+
+    return true;
+}
+
+GuiTaraveXtras::GuiTaraveXtras(Window* window)
+    : GuiComponent(window)
+    , mFrame(window)
+    , mList(window)
+    , mHeader(window, trPorts("X-TRAS"), Font::get(FONT_SIZE_MEDIUM), 0xFFFFFFFF, ALIGN_CENTER)
+    , mSubHeader(window, trPorts("PORTS AND FREE GAMES"),
+                 Font::get(FONT_SIZE_SMALL), 0x9A9A9AFF, ALIGN_CENTER)
+    , mFooter(window, "", Font::get(FONT_SIZE_SMALL), 0xFFFFFFFF, ALIGN_CENTER)
+    , mLastSelectedIndex(0)
+    , mInnerX(0.0f)
+    , mInnerY(0.0f)
+    , mInnerW(0.0f)
+    , mInnerH(0.0f)
+    , mBusy(nullptr)
+    , mBusyVisible(false)
+    , mJobRunning(false)
+    , mJobDone(false)
+    , mJobOk(false)
+    , mJobRefreshPorts(false)
+    , mJobDoneMsg("")
+{
+    mProgressPollMs = 0;
+    mJobLogStart = 0;
+    mJobInitialLabel.clear();
+    mJobStageLabel.clear();
+    mJobPortId.clear();
+
+    const std::string home = Utils::FileSystem::getHomePath();
+    mLogPath = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";
+
+    const float sw = (float)Renderer::getScreenWidth();
+    const float sh = (float)Renderer::getScreenHeight();
+
+    const float frameW = sw * 0.64f;
+    const float frameH = sh * 0.82f;
+    const float frameX = (sw - frameW) * 0.5f;
+    const float frameY = (sh - frameH) * 0.5f;
+
+    mFrame.setImagePath(":/frame_dark.png");
+    mFrame.setPosition(Vector3f(frameX, frameY, 0.0f));
+    mFrame.setSize(Vector2f(frameW, frameH));
+    mFrame.setCornerSize(Vector2f(16.0f, 16.0f));
+    mFrame.setOpacity(0.96f);
+
+    const float padX = sw * 0.018f;
+    const float padY = sh * 0.018f;
+
+    mInnerX = frameX + padX;
+    mInnerY = frameY + padY;
+    mInnerW = frameW - (padX * 2.0f);
+    mInnerH = frameH - (padY * 2.0f);
+
+    // More separation between title/subtitle, closer to Batocera's dialog.
+    mHeader.setPosition(mInnerX, mInnerY + 2.0f);
+    mHeader.setSize(mInnerW, 30.0f);
+
+    mSubHeader.setPosition(mInnerX, mInnerY + 36.0f);
+    mSubHeader.setSize(mInnerW, 18.0f);
+
+    // Give the list breathing room and keep the last row clear of the footer.
+    const float topPad = 70.0f;
+    const float bottomPad = 52.0f;
+
+    mList.setPosition(mInnerX, mInnerY + topPad);
+    mList.setSize(mInnerW, mInnerH - topPad - bottomPad);
+
+    mFooter.setPosition(mInnerX, mInnerY + mInnerH - 31.0f);
+    mFooter.setSize(mInnerW, 24.0f);
+
+    mBusy.reset(new BusyComponent(mWindow));
+    mBusy->setPosition(Vector3f(0.0f, 0.0f, 0.0f));
+    mBusy->setSize(Vector2f(sw, sh));
+    addChild(mBusy.get());
+    setBusyVisible(false);
+
+    loadPorts();
+    rebuildList();
+
+    mList.onFocusGained();
+    updateFooter();
+    updateHelpPrompts();
+}
+
+GuiTaraveXtras::~GuiTaraveXtras()
+{
+    if (mJobThread.joinable())
+        mJobThread.join();
+}
+
+void GuiTaraveXtras::setBusyVisible(bool visible)
+{
+    mBusyVisible = visible;
+    if (mBusy)
+        mBusy->setVisible(visible);
+}
+
+void GuiTaraveXtras::showPopup(const std::string& msg, int durationMs)
+{
+    mWindow->setInfoPopup(new GuiInfoPopup(mWindow, msg, durationMs));
+}
+
+bool GuiTaraveXtras::findRetroPieSetup()
+{
+    const std::string home = Utils::FileSystem::getHomePath();
+
+    std::vector<std::string> candidates;
+
+    const char* env = std::getenv("RETROPIE_SETUP_DIR");
+    if (env && *env)
+        candidates.push_back(env);
+
+    candidates.push_back(home + "/RetroPie-Setup");
+    candidates.push_back(home + "/retropie-setup");
+    candidates.push_back("/opt/retropie-setup");
+
+    for (const std::string& dir : candidates)
+    {
+        const std::string packages = dir + "/retropie_packages.sh";
+        const std::string ports = dir + "/scriptmodules/ports";
+
+        if (Utils::FileSystem::isRegularFile(packages) &&
+            Utils::FileSystem::isDirectory(ports))
+        {
+            mRetroPieSetupDir = dir;
+            mPackagesScript = packages;
+            mPortsModulesDir = ports;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool GuiTaraveXtras::readModuleMetadata(const std::string& path,
+                                         PortEntry& entry) const
+{
+    std::ifstream file(path);
+    if (!file.is_open())
+        return false;
+
+    std::string line;
+
+    while (std::getline(file, line))
+    {
+        std::string value;
+
+        if (parseShellAssignment(line, "rp_module_id", value))
+            entry.id = value;
+        else if (parseShellAssignment(line, "rp_module_desc", value))
+            entry.description = value;
+        else if (parseShellAssignment(line, "rp_module_section", value))
+            entry.section = value;
+        else if (parseShellAssignment(line, "rp_module_flags", value))
+            entry.flags = value;
+    }
+
+    return !entry.id.empty();
+}
+
+int GuiTaraveXtras::sectionRank(const std::string& section) const
+{
+    // X-TRAS: Free Games always come first.
+    if (section == "games:nes")          return 0;
+    if (section == "games:snes")         return 1;
+    if (section == "games:gb")           return 2;
+    if (section == "games:gbc")          return 3;
+    if (section == "games:gba")          return 4;
+    if (section == "games:mastersystem") return 5;
+    if (section == "games:gamegear")     return 6;
+    if (section == "games:megadrive")    return 7;
+    if (section == "games:pcengine")     return 8;
+    if (section == "games:dreamcast")    return 9;
+
+    // Any future X-TRAS game system still stays above RetroPie ports.
+    if (section.compare(0, 6, "games:") == 0)
+        return 10;
+
+    // RetroPie ports afterwards.
+    if (section == "extras") return 19;
+    if (section == "main") return 20;
+    if (section == "opt")  return 21;
+    if (section == "exp")  return 22;
+
+    return 23;
+}
+
+std::string GuiTaraveXtras::sectionName(const std::string& section) const
+{
+    if (section == "extras") return trPorts("RETROPIE TOOLS");
+    if (section == "main") return trPorts("MAIN");
+    if (section == "opt") return trPorts("OPTIONAL");
+    if (section == "exp") return trPorts("EXPERIMENTAL");
+
+    if (section == "games:nes")       return trPorts("FREE GAMES") + " · NES";
+    if (section == "games:snes")      return trPorts("FREE GAMES") + " · SNES";
+    if (section == "games:gb")        return trPorts("FREE GAMES") + " · " + trPorts("GAME BOY");
+    if (section == "games:gbc")       return trPorts("FREE GAMES") + " · " + trPorts("GAME BOY COLOR");
+    if (section == "games:gba")          return trPorts("FREE GAMES") + " · " + trPorts("GAME BOY ADVANCE");
+    if (section == "games:mastersystem") return trPorts("FREE GAMES") + " · " + trPorts("MASTER SYSTEM");
+    if (section == "games:gamegear")     return trPorts("FREE GAMES") + " · " + trPorts("GAME GEAR");
+    if (section == "games:megadrive")    return trPorts("FREE GAMES") + " · " + trPorts("MEGA DRIVE");
+    if (section == "games:pcengine")     return trPorts("FREE GAMES") + " · " + trPorts("PC ENGINE");
+    if (section == "games:dreamcast") return trPorts("FREE GAMES") + " · " + trPorts("DREAMCAST");
+
+    if (section.empty()) return trPorts("OTHER");
+
+    std::string name = section;
+    std::transform(name.begin(), name.end(), name.begin(),
+        [](unsigned char c) { return (char)std::toupper(c); });
+    return name;
+}
+
+bool GuiTaraveXtras::loadPorts()
+{
+    mPorts.clear();
+
+    const bool hasRetroPieSetup = findRetroPieSetup();
+    if (hasRetroPieSetup)
+    {
+    // RetroPie-Setup registra módulos tanto desde:
+    //   scriptmodules/ports
+    // como desde repositorios externos:
+    //   ext/*/scriptmodules/ports
+    //
+    // De este modo también aparecen RetroPie-Extra y cualquier otro
+    // repositorio compatible con el mecanismo ext/ de RetroPie-Setup.
+    std::vector<std::string> portDirs;
+    portDirs.push_back(mPortsModulesDir);
+
+    const std::string extDir = mRetroPieSetupDir + "/ext";
+    if (Utils::FileSystem::isDirectory(extDir))
+    {
+        Utils::FileSystem::stringList vendors =
+            Utils::FileSystem::getDirContent(extDir);
+
+        for (const std::string& vendorPath : vendors)
+        {
+            if (!Utils::FileSystem::isDirectory(vendorPath))
+                continue;
+
+            const std::string externalPorts =
+                vendorPath + "/scriptmodules/ports";
+
+            if (Utils::FileSystem::isDirectory(externalPorts))
+                portDirs.push_back(externalPorts);
+        }
+    }
+
+    // Si dos repositorios definen el mismo id, dejamos una sola entrada.
+    // La última definición encontrada reemplaza la anterior.
+    for (const std::string& portDir : portDirs)
+    {
+        Utils::FileSystem::stringList files =
+            Utils::FileSystem::getDirContent(portDir);
+
+        for (const std::string& path : files)
+        {
+            if (!Utils::FileSystem::isRegularFile(path))
+                continue;
+
+            if (Utils::FileSystem::getExtension(path) != ".sh")
+                continue;
+
+            PortEntry entry;
+            if (!readModuleMetadata(path, entry))
+                continue;
+
+            entry.installed =
+                Utils::FileSystem::isDirectory("/opt/retropie/ports/" + entry.id);
+
+            auto existing = std::find_if(
+                mPorts.begin(), mPorts.end(),
+                [&entry](const PortEntry& p)
+                {
+                    return p.id == entry.id;
+                });
+
+            if (existing != mPorts.end())
+                *existing = entry;
+            else
+                mPorts.push_back(entry);
+        }
+    }
+
+    // Also expose Bezel Project, which RetroPie-Extra installs as a
+    // supplementary module rather than a port. Its native RetroPie setup
+    // action is authoritative; Tarave does not emulate Batocera's service.
+    std::vector<std::string> supplementaryDirs;
+    supplementaryDirs.push_back(mRetroPieSetupDir + "/scriptmodules/supplementary");
+    const std::string external = mRetroPieSetupDir + "/ext";
+    if (Utils::FileSystem::isDirectory(external))
+    {
+        for (const auto& vendor : Utils::FileSystem::getDirContent(external))
+        {
+            if (Utils::FileSystem::isDirectory(vendor))
+                supplementaryDirs.push_back(vendor + "/scriptmodules/supplementary");
+        }
+    }
+
+    for (const auto& dir : supplementaryDirs)
+    {
+        const std::string path = dir + "/bezelproject.sh";
+        if (!Utils::FileSystem::isRegularFile(path))
+            continue;
+        PortEntry bezel;
+        if (!readModuleMetadata(path, bezel) || bezel.id != "bezelproject")
+            continue;
+        bezel.section = "extras";
+        bezel.installed = Utils::FileSystem::isRegularFile(
+            Utils::FileSystem::getHomePath() + "/RetroPie/retropiemenu/bezelproject.sh") ||
+            Utils::FileSystem::isRegularFile(
+                "/opt/retropie/supplementary/bezelproject/bezelproject.sh");
+        const auto existing = std::find_if(mPorts.begin(), mPorts.end(),
+            [](const PortEntry& value) { return value.id == "bezelproject"; });
+        if (existing == mPorts.end())
+            mPorts.push_back(bezel);
+        else
+            *existing = bezel;
+    }
+    } // RetroPie-Setup is optional: the free-game catalog works without it.
+
+    // Tarave's own legal-homebrew catalog also works on an empty RetroPie setup.
+    loadFreeGames();
+
+    std::sort(mPorts.begin(), mPorts.end(),
+        [this](const PortEntry& a, const PortEntry& b)
+        {
+            const int sa = sectionRank(a.section);
+            const int sb = sectionRank(b.section);
+
+            if (sa != sb)
+                return sa < sb;
+
+            const std::string aa =
+                a.description.empty() ? a.id : a.description;
+            const std::string bb =
+                b.description.empty() ? b.id : b.description;
+
+            return aa < bb;
+        });
+
+    if (mPorts.empty())
+        mLastSelectedIndex = 0;
+    else if (mLastSelectedIndex >= (int)mPorts.size())
+        mLastSelectedIndex = (int)mPorts.size() - 1;
+
+    return !mPorts.empty();
+}
+
+void GuiTaraveXtras::loadFreeGames()
+{
+    // X-TRAS catalog:
+    // ~/.emulationstation/esx/xtras-free-games.ini
+    //
+    // Only entries with ready=yes and a non-empty direct download URL
+    // are exposed to the user. This lets the catalog keep verified
+    // redistribution candidates before a stable mirror is available.
+
+    // User override lives in Tarave's *private* settings, never ES-X's.
+    // The bundled ES-X catalog is our reusable, attribution-preserving
+    // fallback and requires no other frontend to be installed.
+    std::string catalogPath =
+        Paths::getUserEmulationStationPath() + "/xtras/xtras-free-games.ini";
+    if (!Utils::FileSystem::isRegularFile(catalogPath))
+        catalogPath = ResourceManager::getInstance()->getResourcePath(
+            ":/xtras-free-games.ini");
+
+    std::ifstream file(catalogPath);
+    if (!file.is_open())
+    {
+        LOG(LogWarning) << "GuiTaraveXtras: X-TRAS catalog not found: "
+                        << catalogPath;
+        return;
+    }
+
+    PortEntry current;
+    bool inSection = false;
+    bool ready = false;
+
+    auto flushGame = [&]()
+    {
+        if (!inSection)
+            return;
+
+        if (ready &&
+            !current.id.empty() &&
+            !current.system.empty() &&
+            !current.filename.empty() &&
+            !current.url.empty())
+        {
+            current.isGame = true;
+            current.section = "games:" + current.system;
+            current.installed =
+                Utils::FileSystem::isRegularFile(gamePath(current));
+
+            mPorts.push_back(current);
+        }
+
+        current = PortEntry{};
+        inSection = false;
+        ready = false;
+    };
+
+    std::string line;
+
+    while (std::getline(file, line))
+    {
+        line = trimPorts(line);
+
+        if (line.empty())
+            continue;
+
+        if (line[0] == ';' || line[0] == '#')
+            continue;
+
+        if (line.front() == '[' && line.back() == ']')
+        {
+            flushGame();
+
+            current = PortEntry{};
+            current.id = trimPorts(
+                line.substr(1, line.size() - 2));
+
+            inSection = true;
+            ready = false;
+            continue;
+        }
+
+        if (!inSection)
+            continue;
+
+        const size_t eq = line.find('=');
+        if (eq == std::string::npos)
+            continue;
+
+        const std::string key =
+            trimPorts(line.substr(0, eq));
+        const std::string value =
+            trimPorts(line.substr(eq + 1));
+
+        if (key == "title")
+            current.description = value;
+        else if (key == "system")
+            current.system = value;
+        else if (key == "filename")
+            current.filename = value;
+        else if (key == "author")
+            current.author = value;
+        else if (key == "license")
+            current.license = value;
+        else if (key == "summary")
+            current.summary = value;
+        else if (key == "download")
+            current.url = value;
+        else if (key == "ready")
+            ready = (value == "yes" ||
+                     value == "true" ||
+                     value == "1");
+    }
+
+    flushGame();
+}
+
+bool GuiTaraveXtras::hasCommand(const std::string& cmd) const
+{
+    if (cmd.empty())
+        return false;
+
+    const std::string test =
+        "command -v " + cmd + " >/dev/null 2>&1";
+
+    return std::system(test.c_str()) == 0;
+}
+
+std::string GuiTaraveXtras::gamePath(const PortEntry& game) const
+{
+    return Utils::FileSystem::getHomePath() +
+        "/RetroPie/roms/" + game.system + "/" + game.filename;
+}
+
+bool GuiTaraveXtras::downloadGame(const PortEntry& game)
+{
+    if (!game.isGame || game.url.empty() ||
+        game.system.empty() || game.filename.empty())
+        return false;
+
+    const std::string dst = gamePath(game);
+    const std::string dstDir = Utils::FileSystem::getParent(dst);
+    const std::string tmp = dst + ".part";
+
+    Utils::FileSystem::createDirectory(dstDir);
+    Utils::FileSystem::createDirectory(
+        Utils::FileSystem::getParent(mLogPath));
+
+    ::unlink(tmp.c_str());
+
+    std::string cmd;
+
+    if (hasCommand("curl"))
+    {
+        cmd = "curl -L --fail --silent --show-error -o " +
+            quotePorts(tmp) + " " + quotePorts(game.url);
+    }
+    else if (hasCommand("wget"))
+    {
+        cmd = "wget -q -O " +
+            quotePorts(tmp) + " " + quotePorts(game.url);
+    }
+    else
+    {
+        LOG(LogError) << "GuiTaraveXtras: curl/wget not found";
+        return false;
+    }
+
+    cmd += " >> " + quotePorts(mLogPath) + " 2>&1";
+
+    if (runCmd(cmd) != 0 ||
+        !Utils::FileSystem::isRegularFile(tmp))
+    {
+        ::unlink(tmp.c_str());
+        return false;
+    }
+
+    // Reject an empty response before replacing an existing ROM.
+    std::ifstream check(tmp, std::ios::binary | std::ios::ate);
+    if (!check.is_open() || check.tellg() <= 0)
+    {
+        check.close();
+        ::unlink(tmp.c_str());
+        return false;
+    }
+    check.close();
+
+    // Atomic-enough final step for a local filesystem:
+    // the old ROM is only replaced after a successful download.
+    if (::rename(tmp.c_str(), dst.c_str()) != 0)
+    {
+        ::unlink(tmp.c_str());
+        return false;
+    }
+
+    return true;
+}
+
+bool GuiTaraveXtras::removeGame(const PortEntry& game)
+{
+    if (!game.isGame)
+        return false;
+
+    const std::string dst = gamePath(game);
+
+    if (!Utils::FileSystem::exists(dst))
+        return true;
+
+    return ::unlink(dst.c_str()) == 0;
+}
+
+void GuiTaraveXtras::rebuildList()
+{
+    mList.clear();
+
+    if (mPorts.empty())
+    {
+        ComponentListRow row;
+
+        const std::string msg = trPorts("NO X-TRAS CONTENT AVAILABLE.");
+
+        auto txt = std::make_shared<TextComponent>(
+            mWindow, msg,
+            Font::get(FONT_SIZE_MEDIUM),
+            0xFFFFFFFF,
+            ALIGN_LEFT);
+
+        row.addElement(txt, false);
+        mList.addRow(row, true);
+        return;
+    }
+
+    std::string previousSection;
+
+    for (int i = 0; i < (int)mPorts.size(); ++i)
+    {
+        const PortEntry& port = mPorts[i];
+        const std::string section = sectionName(port.section);
+
+        if (section != previousSection)
+        {
+            ComponentListRow headerRow;
+
+            auto header = std::make_shared<TextComponent>(
+                mWindow,
+                section,
+                Font::get(FONT_SIZE_SMALL),
+                0x8E8E8EFF,
+                ALIGN_LEFT);
+
+            headerRow.addElement(header, false);
+            mList.addRow(headerRow, false);
+
+            previousSection = section;
+        }
+
+        ComponentListRow row;
+
+        const std::string icon = port.installed ? "✓  " : "↓  ";
+
+        std::string title =
+            port.description.empty() ? port.id : port.description;
+
+        // Avoid long RetroPie descriptions running outside the panel.
+        title = ellipsizePorts(title, 62);
+
+        // Keep the secondary line user-facing. RetroPie flags such as !mali
+        // are useful internally, but make the browser look like a debug view.
+        // El glifo comunica el estado:
+        // ↓ disponible para instalar
+        // ✓ instalado
+        // ⟳ reservado para "actualización disponible"
+        std::string meta = port.id;
+
+        if (port.isGame)
+        {
+            meta.clear();
+
+            if (!port.author.empty())
+                meta += port.author;
+
+            if (!port.license.empty())
+            {
+                if (!meta.empty())
+                    meta += " · ";
+                meta += port.license;
+            }
+
+            if (meta.empty())
+                meta = trPorts("FREE GAME");
+        }
+
+        std::string label = icon + title + "\n    " + meta;
+
+        if (port.isGame && !port.summary.empty())
+            label += "\n    " + ellipsizePorts(port.summary, 72);
+
+        auto txt = std::make_shared<TextComponent>(
+            mWindow,
+            label,
+            Font::get(FONT_SIZE_SMALL),
+            0xFFFFFFFF,
+            ALIGN_LEFT);
+
+        row.addElement(txt, false);
+
+        row.makeAcceptInputHandler([this, i]()
+        {
+            mLastSelectedIndex = i;
+            updateFooter();
+            updateHelpPrompts();
+        });
+
+        mList.addRow(row, (i == mLastSelectedIndex));
+    }
+
+    updateFooter();
+    updateHelpPrompts();
+}
+
+void GuiTaraveXtras::updateFooter()
+{
+    if (mPorts.empty())
+    {
+        mFooter.setText("B " + trPorts("BACK"));
+        return;
+    }
+
+    const PortEntry& port = mPorts[mLastSelectedIndex];
+
+    std::string footer = "A ";
+    footer += port.installed ? trPorts("UPDATE") : trPorts("INSTALL");
+
+    if (port.installed)
+        footer += "    X " + trPorts("REMOVE");
+
+    footer += "    Y " + trPorts("REFRESH") + "    B " + trPorts("BACK");
+    mFooter.setText(footer);
+}
+
+bool GuiTaraveXtras::canUseSudo() const
+{
+    if (geteuid() == 0)
+        return true;
+
+    return std::system("sudo -n true >/dev/null 2>&1") == 0;
+}
+
+int GuiTaraveXtras::runCmd(const std::string& cmd)
+{
+    LOG(LogInfo) << "GuiTaraveXtras detached cmd: " << cmd;
+
+    const std::string statusPath = mLogPath + ".status";
+    ::unlink(statusPath.c_str());
+
+    const std::string qStatus = quotePorts(statusPath);
+
+    const std::string worker =
+        "printf 'RUNNING\\n' > " + qStatus + "; "
+        "(" + cmd + "); "
+        "rc=$?; "
+        "if [ $rc -eq 0 ]; then "
+        "  printf 'SUCCESS\\n' > " + qStatus + "; "
+        "else "
+        "  printf 'ERROR:%s\\n' $rc > " + qStatus + "; "
+        "fi; "
+        "exit $rc";
+
+    pid_t first = ::fork();
+    if (first < 0)
+    {
+        LOG(LogError) << "GuiTaraveXtras: first fork() failed";
+        return 127;
+    }
+
+    if (first == 0)
+    {
+        pid_t second = ::fork();
+        if (second < 0)
+            _exit(127);
+
+        if (second > 0)
+            _exit(0);
+
+        sigset_t emptyMask;
+        sigemptyset(&emptyMask);
+        sigprocmask(SIG_SETMASK, &emptyMask, nullptr);
+
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = SIG_DFL;
+        sigemptyset(&sa.sa_mask);
+        sigaction(SIGCHLD, &sa, nullptr);
+
+        int nullFd = ::open("/dev/null", O_RDWR);
+        if (nullFd >= 0)
+        {
+            ::dup2(nullFd, STDIN_FILENO);
+            ::dup2(nullFd, STDOUT_FILENO);
+            ::dup2(nullFd, STDERR_FILENO);
+            if (nullFd > STDERR_FILENO)
+                ::close(nullFd);
+        }
+
+        ::execl("/bin/sh", "sh", "-c", worker.c_str(), (char*)nullptr);
+        _exit(127);
+    }
+
+    std::string status;
+
+    for (int i = 0; i < 50; ++i)
+    {
+        std::ifstream in(statusPath);
+        if (in.is_open())
+        {
+            std::getline(in, status);
+            status = trimPorts(status);
+            if (!status.empty())
+                break;
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    if (status.empty())
+    {
+        LOG(LogError) << "GuiTaraveXtras: detached worker did not start";
+        return 127;
+    }
+
+    const int maxPolls = 12 * 60 * 60 * 4;
+
+    for (int i = 0; i < maxPolls; ++i)
+    {
+        std::ifstream in(statusPath);
+        if (in.is_open())
+        {
+            std::getline(in, status);
+            status = trimPorts(status);
+
+            if (status == "SUCCESS")
+                return 0;
+
+            if (status.compare(0, 6, "ERROR:") == 0)
+            {
+                const int rc = std::atoi(status.substr(6).c_str());
+                return rc == 0 ? 1 : rc;
+            }
+        }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
+
+    LOG(LogError) << "GuiTaraveXtras: detached worker timed out";
+    return 124;
+}
+
+bool GuiTaraveXtras::installOrUpdatePort(const PortEntry& port)
+{
+    if (mPackagesScript.empty())
+        return false;
+
+    Utils::FileSystem::createDirectory(
+        Utils::FileSystem::getParent(mLogPath));
+
+    const std::string cmd =
+        "sudo -n " + quotePorts(mPackagesScript) + " " +
+        quotePorts(port.id) + " _autoupdate_ >> " +
+        quotePorts(mLogPath) + " 2>&1";
+
+    return runCmd(cmd) == 0;
+}
+
+bool GuiTaraveXtras::removePort(const PortEntry& port)
+{
+    if (mPackagesScript.empty())
+        return false;
+
+    Utils::FileSystem::createDirectory(
+        Utils::FileSystem::getParent(mLogPath));
+
+    const std::string cmd =
+        "sudo -n " + quotePorts(mPackagesScript) + " " +
+        quotePorts(port.id) + " remove >> " +
+        quotePorts(mLogPath) + " 2>&1";
+
+    return runCmd(cmd) == 0;
+}
+
+void GuiTaraveXtras::startJob(const std::string& busyMsg,
+                               std::function<bool()> fn,
+                               const std::string& okMsg,
+                               const std::string& failMsg,
+                               bool refreshPorts)
+{
+    if (mJobRunning)
+        return;
+
+    mJobRunning = true;
+    mJobDone = false;
+    mJobOk = false;
+    mJobRefreshPorts = refreshPorts;
+
+    mProgressPollMs = 0;
+    mJobInitialLabel = busyMsg;
+    mJobStageLabel.clear();
+    mJobPortId.clear();
+    mJobLogStart = 0;
+
+    {
+        std::ifstream log(mLogPath, std::ios::binary | std::ios::ate);
+        if (log.is_open())
+        {
+            const std::streamoff pos = static_cast<std::streamoff>(log.tellg());
+            if (pos > 0)
+                mJobLogStart = static_cast<long long>(pos);
+        }
+    }
+
+    if (mBusy)
+    {
+        mBusy->setText(busyMsg);
+        mBusy->reset();
+    }
+
+    setBusyVisible(true);
+    showPopup(busyMsg, 1200);
+
+    if (mJobThread.joinable())
+        mJobThread.join();
+
+    mJobThread = std::thread([this, fn, okMsg, failMsg]()
+    {
+        const bool ok = fn();
+
+        {
+            std::lock_guard<std::mutex> lock(mJobMutex);
+            mJobOk = ok;
+            mJobDoneMsg = ok ? okMsg : failMsg;
+        }
+
+        mJobDone = true;
+        mJobRunning = false;
+    });
+}
+
+void GuiTaraveXtras::updateJobProgress()
+{
+    if (!mJobRunning || !mBusy)
+        return;
+
+    std::ifstream log(mLogPath, std::ios::binary);
+    if (!log.is_open())
+        return;
+
+    log.seekg(0, std::ios::end);
+    const std::streamoff endPos = static_cast<std::streamoff>(log.tellg());
+    if (endPos <= 0)
+        return;
+
+    long long end = static_cast<long long>(endPos);
+    long long start = mJobLogStart;
+
+    if (start < 0 || start > end)
+        start = 0;
+
+    // Only inspect the tail. Long compilations can produce megabytes of warnings.
+    const long long maxTail = 128 * 1024;
+    if ((end - start) > maxTail)
+        start = end - maxTail;
+
+    log.seekg(static_cast<std::streamoff>(start), std::ios::beg);
+
+    std::ostringstream buffer;
+    buffer << log.rdbuf();
+    const std::string data = buffer.str();
+
+    if (data.empty())
+        return;
+
+    size_t bestPos = std::string::npos;
+    std::string stage;
+
+    auto consider = [&](const std::string& marker, const std::string& label)
+    {
+        const size_t p = data.rfind(marker);
+        if (p != std::string::npos &&
+            (bestPos == std::string::npos || p > bestPos))
+        {
+            bestPos = p;
+            stage = label;
+        }
+    };
+
+    consider("Installing dependencies for '", trPorts("DEPENDENCIES"));
+    consider("Getting sources for '",         trPorts("DOWNLOADING"));
+    consider("Building '",                    trPorts("COMPILING"));
+    consider("Installing '",                  trPorts("INSTALLING FILES"));
+    consider("Install the project...",        trPorts("INSTALLING FILES"));
+    consider("-- Installing:",                trPorts("INSTALLING FILES"));
+    consider("Configuring '",                 trPorts("CONFIGURING"));
+    consider("Removing '",                    trPorts("REMOVING"));
+
+    if (!stage.empty())
+        mJobStageLabel = stage;
+
+    // Extract module id from RetroPie headings when available.
+    if (bestPos != std::string::npos)
+    {
+        const size_t q1 = data.find('\'', bestPos);
+        if (q1 != std::string::npos)
+        {
+            const size_t q2 = data.find('\'', q1 + 1);
+            if (q2 != std::string::npos && q2 > q1 + 1)
+                mJobPortId = data.substr(q1 + 1, q2 - q1 - 1);
+        }
+    }
+
+    if (mJobStageLabel.empty())
+    {
+        if (!mJobInitialLabel.empty())
+            mBusy->setText(mJobInitialLabel);
+        return;
+    }
+
+    // Use the newest percentage emitted after the current stage marker.
+    // This is the real percentage reported by make/apt/etc., not a fake
+    // overall-install percentage.
+    int percent = -1;
+    const size_t percentStart =
+        (bestPos == std::string::npos) ? 0 : bestPos;
+
+    size_t p = percentStart;
+    while ((p = data.find('%', p)) != std::string::npos)
+    {
+        size_t begin = p;
+        while (begin > percentStart &&
+               std::isdigit(static_cast<unsigned char>(data[begin - 1])))
+        {
+            --begin;
+        }
+
+        if (begin < p)
+        {
+            const int value = std::atoi(data.substr(begin, p - begin).c_str());
+            if (value >= 0 && value <= 100)
+                percent = value;
+        }
+
+        ++p;
+    }
+
+    std::string label = mJobStageLabel;
+
+    if (!mJobPortId.empty())
+        label += "  " + ellipsizePorts(mJobPortId, 24);
+
+    if (percent >= 0)
+        label += "  " + std::to_string(percent) + "%";
+
+    mBusy->setText(label);
+}
+
+void GuiTaraveXtras::finishJobIfDone()
+{
+    if (!mJobDone)
+        return;
+
+    if (mJobThread.joinable())
+        mJobThread.join();
+
+    setBusyVisible(false);
+
+    std::string msg;
+    bool ok = false;
+    bool refresh = false;
+
+    {
+        std::lock_guard<std::mutex> lock(mJobMutex);
+        msg = mJobDoneMsg;
+        ok = mJobOk;
+        refresh = mJobRefreshPorts;
+    }
+
+    if (!ok)
+        msg += "\n" + trPorts("SEE LOG") + ": " + mLogPath;
+
+    showPopup(msg, ok ? 2500 : 5000);
+
+    if (refresh)
+        loadPorts();
+
+    rebuildList();
+    mJobDone = false;
+}
+
+bool GuiTaraveXtras::input(InputConfig* config, Input input)
+{
+    if (input.value == 0)
+        return GuiComponent::input(config, input);
+
+    if (mJobRunning)
+        return true;
+
+    if (config->isMappedTo("b", input) ||
+        config->isMappedTo("back", input))
+    {
+        mWindow->removeGui(this);
+        return true;
+    }
+
+    if (mPorts.empty())
+    {
+        if (config->isMappedTo("y", input))
+        {
+            loadPorts();
+            rebuildList();
+            return true;
+        }
+
+        return GuiComponent::input(config, input);
+    }
+
+    if (config->isMappedLike("up", input))
+    {
+        --mLastSelectedIndex;
+
+        if (mLastSelectedIndex < 0)
+            mLastSelectedIndex = (int)mPorts.size() - 1;
+
+        rebuildList();
+        return true;
+    }
+
+    if (config->isMappedLike("down", input))
+    {
+        ++mLastSelectedIndex;
+
+        if (mLastSelectedIndex >= (int)mPorts.size())
+            mLastSelectedIndex = 0;
+
+        rebuildList();
+        return true;
+    }
+
+    if (config->isMappedTo("y", input))
+    {
+        loadPorts();
+        rebuildList();
+        showPopup(trPorts("PORTS LIST REFRESHED."), 1800);
+        return true;
+    }
+
+    if (config->isMappedTo("a", input) ||
+        config->isMappedTo("start", input))
+    {
+        const PortEntry current = mPorts[mLastSelectedIndex];
+
+        if (current.isGame)
+        {
+            startJob(
+                trPorts("DOWNLOADING GAME..."),
+                [this, current]() { return downloadGame(current); },
+                trPorts("GAME DOWNLOADED.") + "\n" +
+                    trPorts("RESTART TARAVE TO REFRESH THE GAME LIST."),
+                trPorts("GAME DOWNLOAD FAILED."),
+                true);
+
+            return true;
+        }
+
+        if (!canUseSudo())
+        {
+            showPopup(
+                trPorts("RETROPIE-SETUP NEEDS PASSWORDLESS SUDO FOR TARAVE.") + "\n" +
+                trPorts("TEST WITH") + ": sudo -n true",
+                5000);
+            return true;
+        }
+
+        startJob(
+            current.installed ? trPorts("CHECKING/UPDATING PORT...") : trPorts("INSTALLING PORT..."),
+            [this, current]() { return installOrUpdatePort(current); },
+            current.installed ? trPorts("PORT IS UP TO DATE / UPDATED.") : trPorts("PORT INSTALLED."),
+            trPorts("RETROPIE-SETUP ACTION FAILED."),
+            true);
+
+        return true;
+    }
+
+    if (config->isMappedTo("x", input) ||
+        config->isMappedTo("delete", input))
+    {
+        const PortEntry current = mPorts[mLastSelectedIndex];
+
+        if (!current.installed)
+        {
+            showPopup(
+                current.isGame ? trPorts("GAME IS NOT INSTALLED.")
+                               : trPorts("PORT IS NOT INSTALLED."),
+                2200);
+            return true;
+        }
+
+        const std::string name =
+            current.description.empty() ? current.id : current.description;
+
+        if (current.isGame)
+        {
+            mWindow->pushGui(new GuiMsgBox(
+                mWindow,
+                trPorts("REMOVE") + " " + name + "?",
+                "YES",
+                [this, current]()
+                {
+                    startJob(
+                        trPorts("REMOVING GAME..."),
+                        [this, current]() { return removeGame(current); },
+                        trPorts("GAME REMOVED.") + "\n" +
+                            trPorts("RESTART TARAVE TO REFRESH THE GAME LIST."),
+                        trPorts("REMOVE FAILED."),
+                        true);
+                },
+                "NO",
+                nullptr));
+
+            return true;
+        }
+
+        if (!canUseSudo())
+        {
+            showPopup(
+                trPorts("RETROPIE-SETUP NEEDS PASSWORDLESS SUDO FOR TARAVE.") + "\n" +
+                trPorts("TEST WITH") + ": sudo -n true",
+                5000);
+            return true;
+        }
+
+        mWindow->pushGui(new GuiMsgBox(
+            mWindow,
+            trPorts("REMOVE") + " " + name + "?",
+            "YES",
+            [this, current]()
+            {
+                startJob(
+                    trPorts("REMOVING PORT..."),
+                    [this, current]() { return removePort(current); },
+                    trPorts("PORT REMOVED."),
+                    trPorts("REMOVE FAILED."),
+                    true);
+            },
+            "NO",
+            nullptr));
+
+        return true;
+    }
+
+    return GuiComponent::input(config, input);
+}
+
+void GuiTaraveXtras::update(int deltaTime)
+{
+    GuiComponent::update(deltaTime);
+
+    mFrame.update(deltaTime);
+    mList.update(deltaTime);
+    mHeader.update(deltaTime);
+    mSubHeader.update(deltaTime);
+    mFooter.update(deltaTime);
+
+    if (mJobRunning)
+    {
+        mProgressPollMs += deltaTime;
+        if (mProgressPollMs >= 350)
+        {
+            mProgressPollMs = 0;
+            updateJobProgress();
+        }
+    }
+
+    finishJobIfDone();
+}
+
+void GuiTaraveXtras::render(const Transform4x4f& parentTrans)
+{
+    Transform4x4f trans = parentTrans * getTransform();
+    Renderer::setMatrix(trans);
+
+    mFrame.render(trans);
+    mHeader.render(trans);
+    mSubHeader.render(trans);
+    mList.render(trans);
+    mFooter.render(trans);
+
+    renderChildren(trans);
+}
+
+std::vector<HelpPrompt> GuiTaraveXtras::getHelpPrompts()
+{
+    std::vector<HelpPrompt> prompts;
+
+    prompts.push_back(HelpPrompt("up/down", trPorts("MOVE")));
+
+    if (!mPorts.empty())
+    {
+        const bool installed = mPorts[mLastSelectedIndex].installed;
+
+        prompts.push_back(
+            HelpPrompt("a", installed ? trPorts("UPDATE") : trPorts("INSTALL")));
+
+        if (installed)
+            prompts.push_back(HelpPrompt("x", trPorts("REMOVE")));
+
+        prompts.push_back(HelpPrompt("y", trPorts("REFRESH")));
+    }
+
+    prompts.push_back(HelpPrompt("b", trPorts("BACK")));
+
+    return prompts;
+}
+
+void GuiTaraveXtras::updateHelpPrompts()
+{
+    HelpStyle style;
+    mWindow->setHelpPrompts(getHelpPrompts(), style);
+}
