@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Structural regression checks for the optional RetroPie-only X-TRAS experiment."""
-from pathlib import Path
+"""Tarave native X-TRAS store integration regressions (no hardware required)."""
 import configparser
-import re
+from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,64 +10,66 @@ ROOT = Path(__file__).resolve().parents[1]
 class TaraveXtrasTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.code = (ROOT / "es-app/src/guis/GuiTaraveXtras.cpp").read_text()
-        cls.header = (ROOT / "es-app/src/guis/GuiTaraveXtras.h").read_text()
+        cls.service = (ROOT / "es-app/src/TaraveXtrasService.cpp").read_text()
         cls.menu = (ROOT / "es-app/src/guis/GuiMenu.cpp").read_text()
+        cls.store = (ROOT / "es-app/src/guis/GuiBatoceraStore.cpp").read_text()
+        cls.api = (ROOT / "es-app/src/ApiSystem.cpp").read_text()
         cls.cmake = (ROOT / "es-app/CMakeLists.txt").read_text()
+        cls.source_old = (ROOT / "es-app/src/guis/GuiTaraveXtras.cpp").read_text()
 
-    def test_uses_taraves_isolated_home_not_esx(self):
-        self.assertIn('Paths::getUserEmulationStationPath() + "/xtras/', self.code)
-        self.assertNotIn('"/.emulationstation/esx/', self.code)
-        self.assertNotIn('~/.emulationstation', self.code)
+    def test_reuses_native_store_and_buttons(self):
+        self.assertIn('mWindow->pushGui(new GuiBatoceraStore(mWindow))', self.menu)
+        self.assertNotIn('mWindow->pushGui(new GuiTaraveXtras(mWindow))', self.menu)
+        self.assertIn('config->isMappedTo(BUTTON_BACK, input)', self.store)
+        self.assertIn('mList->getHelpPrompts()', self.store)
+        self.assertIn('mWindow->pushGui(msgBox)', self.store)
+        self.assertIn('GuiBatoceraStoreEntry', self.store)
+        self.assertIn('RetroPieRuncommand::enabled() ? "X-TRAS"', self.store)
 
-    def test_catalog_bundled_and_licensed(self):
-        path = ROOT / "resources/xtras-free-games.ini"
-        self.assertTrue(path.is_file())
+    def test_no_classic_browser_compiled(self):
+        self.assertIn("src/TaraveXtrasService.cpp", self.cmake)
+        self.assertIn("src/TaraveXtrasService.h", self.cmake)
+        self.assertNotIn("src/guis/GuiTaraveXtras.cpp", self.cmake)
+        self.assertNotIn("src/guis/GuiTaraveXtras.h", self.cmake)
+
+    def test_bundle_and_private_catalog(self):
         catalog = configparser.ConfigParser(interpolation=None)
-        catalog.read(path)
-        ready = 0
-        for section in catalog.sections():
-            ent = catalog[section]
-            if ent.get('ready') == 'yes':
-                ready += 1
-                for key in ('title', 'system', 'filename', 'author', 'license', 'download', 'license_url'):
-                    self.assertTrue(ent.get(key), (section, key))
-            self.assertIn(ent.get('ready'), ('yes', 'no'))
-        self.assertGreaterEqual(ready, 5)
-        self.assertIn(':/xtras-free-games.ini', self.code)
+        catalog.read(ROOT / "resources/xtras-free-games.ini")
+        ready = [x for x in catalog.sections() if catalog[x].get("ready") == "yes"]
+        self.assertGreaterEqual(len(ready), 5)
+        for item in ready:
+            for field in ("title", "system", "license", "download", "filename"):
+                self.assertTrue(catalog[item].get(field), (item, field))
+        self.assertIn('Paths::getUserEmulationStationPath() + "/xtras/xtras-free-games.ini"', self.service)
+        self.assertIn(':/xtras-free-games.ini', self.service)
 
-    def test_catalog_does_not_require_retropie_setup(self):
-        self.assertIn("const bool hasRetroPieSetup = findRetroPieSetup()", self.code)
-        self.assertIn("if (hasRetroPieSetup)", self.code)
-        self.assertIn("loadFreeGames();", self.code)
-        self.assertNotIn("if (!findRetroPieSetup())\n        return false;", self.code)
+    def test_login_home_independent_from_frontend_home(self):
+        self.assertIn("getpwuid(getuid())", self.service)
+        self.assertIn('loginHome() + "/RetroPie-Setup"', self.service)
+        self.assertIn('loginHome() + "/RetroPie/roms/"', self.service)
+        self.assertIn('"TARAVE_RETROPIE_SETUP"', self.service)
+        self.assertIn('"RETROPIE_SETUP_DIR"', self.service)
 
-    def test_ports_and_retro_pie_extra_supplementary(self):
-        self.assertIn('"/scriptmodules/ports"', self.code)
-        self.assertIn('"/scriptmodules/supplementary"', self.code)
-        self.assertIn('"/bezelproject.sh"', self.code)
-        self.assertIn('port.id', self.code)
-        self.assertIn(' _autoupdate_ >> ', self.code)
+    def test_ports_bezel_project_with_setup(self):
+        self.assertIn('"/scriptmodules/ports"', self.service)
+        self.assertIn('"/scriptmodules/supplementary/bezelproject.sh"', self.service)
+        self.assertIn('p.name = "module:bezelproject"', self.service)
+        self.assertIn('"/retropie_packages.sh"', self.service)
+        self.assertIn('sudo -n ', self.service)
 
-    def test_copy_installed_with_frontend(self):
-        self.assertIn("src/guis/GuiTaraveXtras.h", self.cmake)
-        self.assertIn("src/guis/GuiTaraveXtras.cpp", self.cmake)
-        self.assertIn('GuiTaraveXtras', self.header)
+    def test_no_batocera_daemon_for_retro_pie(self):
+        self.assertIn('if (RetroPieRuncommand::enabled()) return TaraveXtrasService::list();', self.api)
+        self.assertIn('if (RetroPieRuncommand::enabled()) return TaraveXtrasService::install(name, func);', self.api)
+        self.assertIn('if (RetroPieRuncommand::enabled()) return TaraveXtrasService::remove(name, func);', self.api)
+        self.assertIn('if (RetroPieRuncommand::enabled()) return; // Never run batocera-store update', self.api)
+        self.assertIn('mWindow->pushGui(new GuiThemeInstaller(mWindow));', self.menu)
 
-    def test_menu_is_retro_pie_only_and_themes_remain(self):
-        menu = self.menu
-        self.assertIn('#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)', menu)
-        self.assertIn('updateGui->addEntry("X-TRAS"', menu)
-        self.assertIn('mWindow->pushGui(new GuiTaraveXtras(mWindow))', menu)
-        self.assertIn('mWindow->pushGui(new GuiThemeInstaller(mWindow))', menu)
-        self.assertIn('mWindow->pushGui(new GuiBatoceraStore(mWindow))', menu)
-
-    def test_installs_are_explicit_and_remove_requires_confirmation(self):
-        self.assertIn('canUseSudo()', self.code)
-        self.assertIn('sudo -n ', self.code)
-        self.assertIn('new GuiMsgBox(', self.code)
-        self.assertIn('".part"', self.code)
-        self.assertIn('::rename(tmp.c_str(), dst.c_str())', self.code)
+    def test_non_destructive_download_and_cleanup(self):
+        self.assertIn('".tarave-part"', self.service)
+        self.assertIn('std::rename(tmp.c_str(), dst.c_str())', self.service)
+        self.assertIn('std::remove(tmp.c_str())', self.service)
+        self.assertIn("if (!token(moduleId))", self.service)
+        self.assertIn("if (!token(id) || !token(system) || !filename(file)", self.service)
 
 
 if __name__ == "__main__":

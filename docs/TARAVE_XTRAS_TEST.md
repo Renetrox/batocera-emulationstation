@@ -5,9 +5,11 @@ its RetroPie-Extra installer; it is not merged into the upstream/default branch.
 
 ## What has been ported
 
-The X-TRAS browser from `Renetrox/EmulationStation-X` is exposed as
-**Main menu → Updates & Downloads → X-TRAS** in the standalone, non-Batocera
-RetroPie build. Batocera's built-in themes downloader remains unchanged.
+Tarave uses **Batocera-ES's native Content Downloader interface** (tabs,
+search, queue notifications, correct BUTTON_OK/BUTTON_BACK, theme-dependent
+styling) to display the X-TRAS catalogue under
+**Main menu → Updates & Downloads → X-TRAS**. Only the service backend changes;
+Batocera's built-in themes downloader remains unchanged.
 
 - Discover modules from RetroPie-Setup `scriptmodules/ports`, including
   compatible third-party modules in `ext/*/scriptmodules/ports`.
@@ -17,7 +19,7 @@ RetroPie build. Batocera's built-in themes downloader remains unchanged.
 - The initial catalog `resources/xtras-free-games.ini` is copied from ES-X.
   Show only entries marked `ready=yes` and with a direct download URL.
 - Download games into `$HOME/RetroPie/roms/<system>/`. Existing files are
-  overwritten only after a successful nonempty download to a `.part` file.
+  overwritten only after a successful nonempty download to a `.tarave-part` file.
   Removal requires GUI confirmation.
 - Install and remove ports using the installed RetroPie-Setup module manager
   with `sudo -n`. A passwordless sudo setup is required to use these buttons;
@@ -27,7 +29,11 @@ RetroPie build. Batocera's built-in themes downloader remains unchanged.
   `<Tarave private .emulationstation>/xtras/xtras-free-games.ini`.
   If absent, the bundled catalog is used. No ES-X installation is required.
 
-**Limits:** The Bezel Project uses its own RetroPie utility. This change does
+**Limits:** The Bezel Project uses its own RetroPie utility. The service
+looks up RetroPie-Setup using the OS login user's actual home directory,
+not Tarave's private --home path. If ports still do not appear, check
+`$HOME/RetroPie-Setup` and the paths set via `TARAVE_RETROPIE_SETUP` or
+`RETROPIE_SETUP_DIR`, as well as Tarave's log messages prefixed `X-TRAS:`. This change does
 **not** add Batocera's automatic 4:3 bezel hiding; aspect-ratio policies require
 a separate emulator-side integration. The browser does not install the
 Batocera content store or change Runcommand.
@@ -62,11 +68,14 @@ that has never completed the Tarave configure step.
 Then start `batocera-es-test` and check:
 1. **Updates & Downloads → X-TRAS** is visible.
 2. Licensed `ready=yes` homebrew entries appear without requiring ES-X.
-3. RetroPie-Setup ports are listed.
-4. Bezel Project appears if RetroPie-Extra has registered its supplementary module.
+3. The store's **PORTS** tab shows RetroPie-Setup and RetroPie-Extra ports.
+4. The **HERRAMIENTAS** tab includes Bezel Project if RetroPie-Extra has
+   registered its supplementary module.
 5. A selected game's download appears in `$HOME/RetroPie/roms/<system>/`.
-6. The original Themes downloader still works.
-7. Ports require working `sudo -n true` before GUI installs.
+6. A/confirm and B/back follow the same mappings as the rest of Tarave,
+   including switching tabs, confirming entries, dismissing dialogs and Back.
+7. The original Themes downloader still works.
+8. Ports require working `sudo -n true` before GUI installs.
 
 Do not assume that a 4:3 overlay policy has been implemented: Tarave leaves
 Bezel Project's own RetroPie setup and emulator config policies untouched.

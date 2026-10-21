@@ -12,8 +12,7 @@
 #include "guis/GuiThemeInstaller.h"
 #include "guis/GuiBezelInstaller.h"
 #include "guis/GuiBatoceraStore.h"
-#include "guis/GuiTaraveXtras.h"
-#include "guis/GuiSettings.h"
+ #include "guis/GuiSettings.h"
 #include "guis/GuiRetroAchievements.h"
 #include "guis/GuiGamelistOptions.h"
 #include "guis/GuiImageViewer.h"
@@ -1222,7 +1221,7 @@ void GuiMenu::openUpdatesSettings()
 	{
 		updateGui->addEntry("X-TRAS", true, [this]
 		{
-			mWindow->pushGui(new GuiTaraveXtras(mWindow));
+			mWindow->pushGui(new GuiBatoceraStore(mWindow));
 		});
 	}
 	else

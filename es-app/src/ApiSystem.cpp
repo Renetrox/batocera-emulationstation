@@ -17,6 +17,8 @@
 #include "Paths.h"
 #include "utils/VectorEx.h"
 #include "LocaleES.h"
+#include "RetroPieRuncommand.h"
+#include "TaraveXtrasService.h"
 
 #include <stdlib.h>
 #include <sstream>
@@ -1953,6 +1955,9 @@ std::vector<std::string> ApiSystem::extractPdfImages(const std::string& fileName
 
 std::vector<PacmanPackage> ApiSystem::getBatoceraStorePackages()
 {
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled()) return TaraveXtrasService::list();
+#endif
 	std::vector<PacmanPackage> packages;
 
 	LOG(LogDebug) << "ApiSystem::getBatoceraStorePackages";
@@ -2026,16 +2031,25 @@ std::vector<PacmanPackage> ApiSystem::getBatoceraStorePackages()
 
 std::pair<std::string, int> ApiSystem::installBatoceraStorePackage(std::string name, const std::function<void(const std::string)>& func)
 {
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled()) return TaraveXtrasService::install(name, func);
+#endif
 	return executeScript("batocera-store install \"" + name + "\"", func);
 }
 
 std::pair<std::string, int> ApiSystem::uninstallBatoceraStorePackage(std::string name, const std::function<void(const std::string)>& func)
 {
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled()) return TaraveXtrasService::remove(name, func);
+#endif
 	return executeScript("batocera-store remove \"" + name + "\"", func);
 }
 
 void ApiSystem::refreshBatoceraStorePackageList()
 {
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled()) return; // Local filesystem catalog, no package-manager daemon.
+#endif
 	executeScript("batocera-store refresh");
 	executeScript("batocera-store clean-all");
 }
@@ -2047,6 +2061,9 @@ void ApiSystem::callBatoceraPreGameListsHook()
 
 void ApiSystem::updateBatoceraStorePackageList()
 {
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled()) return; // Never run batocera-store update on RetroPie.
+#endif
 	executeScript("batocera-store update");
 }
 
