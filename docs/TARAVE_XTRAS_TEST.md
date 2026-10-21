@@ -1,6 +1,7 @@
 # Experimental X-TRAS for Tarave on RetroPie
 
-This is a **test branch**, not a replacement for the active Tarave release.
+This integration is part of the **existing experimental Tarave branch** used by
+its RetroPie-Extra installer; it is not merged into the upstream/default branch.
 
 ## What has been ported
 
