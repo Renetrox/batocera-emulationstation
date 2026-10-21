@@ -72,6 +72,16 @@ class RetroPiePlayerOrderTests(unittest.TestCase):
             bridge.sync({1: ("Retro Pad", "bbb", "")}, self.devices, self.retroarch)
         self.assertEqual(self.retroarch.read_bytes(), before)
 
+    def test_manual_override_added_after_tarave_relinquishes_control(self):
+        prefs = {1: ("Retro Pad", "bbb", "")}
+        bridge.sync(prefs, self.devices, self.retroarch)
+        text = self.retroarch.read_text()
+        self.retroarch.write_text(text + 'input_player1_joypad_index = "3"\n')
+        self.assertTrue(bridge.sync(prefs, self.devices, self.retroarch))
+        final = self.retroarch.read_text()
+        self.assertNotIn(bridge.BEGIN, final)
+        self.assertIn('input_player1_joypad_index = "3"', final)
+
     def test_duplicate_names_without_a_path_are_rejected(self):
         twins = [
             {"index": 0, "name": "Gamepad", "guid": "aaa", "path": ""},
