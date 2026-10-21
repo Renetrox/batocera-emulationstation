@@ -31,50 +31,50 @@ RetroPie build. Batocera's built-in themes downloader remains unchanged.
 a separate emulator-side integration. The browser does not install the
 Batocera content store or change Runcommand.
 
-## How to test the branch
+## Install and test via the existing RetroPie-Extra module
 
-The active source branch remains
-`experiment/retropie-standalone-20261013`.
+The source is part of the **active Tarave experiment**:
+`experiment/retropie-standalone-20261013`. The existing RetroPie-Extra
+module `experiment/batocera-es-standalone-module-20261013` already
+points to that source branch. No separate installer source branch is needed.
+**Do not switch Git branches to install X-TRAS.**
 
-To opt in, the corresponding *separate* RetroPie-Extra module branch is
-`experiment/tarave-xtras-module-20261021`, which points at
-`experiment/tarave-xtras-20261021` in the Tarave source repository.
-Switch to that branch in your existing RetroPie-Extra checkout **only
-for the test**, then use your normal `tarave-install` installer.
-
-For a side-by-side install that does not replace the normal RetroPie frontend
-entrypoint, use `TARAVE_INSTALL_SIDE_BY_SIDE=1` with your installation
-command; it still updates Tarave's own installed binary.
-
-Example, adjusting the path to the RetroPie-Extra checkout you actually use:
+From the normal login account on the RetroPie computer (not root):
 
 ```bash
-cd ~/RetroPie-Setup/ext/RetroPie-Extra
-git fetch origin experiment/tarave-xtras-module-20261021
-git switch --track origin/experiment/tarave-xtras-module-20261021
-TARAVE_INSTALL_SIDE_BY_SIDE=1 tarave-install
+test -f "$HOME/RetroPie-Setup/ext/RetroPie-Extra/scriptmodules/supplementary/batocera-es-test.sh"
+grep '^rp_module_repo=' "$HOME/RetroPie-Setup/ext/RetroPie-Extra/scriptmodules/supplementary/batocera-es-test.sh"
+cd "$HOME/RetroPie-Setup"
+sudo -v
+sudo env TARAVE_INSTALL_SIDE_BY_SIDE=1 \
+  ./retropie_packages.sh batocera-es-test _source_
 ```
 
-The path and remote must be checked locally; some RetroPie setups have the
-module checked out under a differently named `ext/` folder.
+The module must already be registered in RetroPie-Setup. If the paths above
+are different, first locate the existing module checkout, do not clone or
+replace a user's RetroPie-Extra installation blindly. The source installer
+compiles and installs the updated frontend while preserving the ordinary
+RetroPie EmulationStation launcher when side-by-side mode is requested.
+The `tarave-install` helper is optional and may not exist on an installation
+that has never completed the Tarave configure step.
 
-When installed, open **Updates & Downloads → X-TRAS** and verify:
-1. Homebrew catalog entries appear even if RetroPie-Setup cannot be found.
-2. Entries from RetroPie-Setup and RetroPie-Extra ports are shown.
-3. Bezel Project is shown if RetroPie-Extra's supplementary module is present.
-4. A `ready=yes` game downloads and is detected under its ROM directory.
-5. Installed content is removable only after confirmation.
+Then start `batocera-es-test` and check:
+1. **Updates & Downloads → X-TRAS** is visible.
+2. Licensed `ready=yes` homebrew entries appear without requiring ES-X.
+3. RetroPie-Setup ports are listed.
+4. Bezel Project appears if RetroPie-Extra has registered its supplementary module.
+5. A selected game's download appears in `$HOME/RetroPie/roms/<system>/`.
 6. The original Themes downloader still works.
+7. Ports require working `sudo -n true` before GUI installs.
 
-Do **not** test automated port installs unless `sudo -n true` works and
-you intend to install/update that software.
+Do not assume that a 4:3 overlay policy has been implemented: Tarave leaves
+Bezel Project's own RetroPie setup and emulator config policies untouched.
 
 ## Rollback
 
-Switch the RetroPie-Extra checkout back to its previous branch
-(`git switch -` if that is the original branch), then reinstall the
-stable Tarave source through `tarave-install`.
-
-The experimental source branch is not merged into the active installer target.
-Original ROMs, Runcommand configs and ES-X settings are not migrated.
+To revert, install an older confirmed Tarave revision through the usual
+RetroPie-Setup workflow, or restore the previously installed frontend entrypoint
+using the module's supported restore procedure. A side-by-side installation
+does not replace the default launcher. Original ROMs, Runcommand configs
+and ES-X settings are not migrated.
 Downloaded games remain in the user's ROM folders unless explicitly removed.
