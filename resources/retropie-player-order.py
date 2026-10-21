@@ -56,6 +56,7 @@ def connected_devices():
     sdl.SDL_JoystickGetDeviceGUID.argtypes = [ctypes.c_int]
     sdl.SDL_JoystickGetDeviceGUID.restype = SDL_GUID
     sdl.SDL_JoystickGetGUIDString.argtypes = [SDL_GUID, ctypes.c_void_p, ctypes.c_int]
+    sdl.SDL_JoystickGetGUIDString.restype = None
     path_for_index = getattr(sdl, "SDL_JoystickPathForIndex", None)
     if path_for_index:
         path_for_index.argtypes = [ctypes.c_int]
@@ -81,6 +82,7 @@ def connected_devices():
         return devices
     finally:
         sdl.SDL_QuitSubSystem.argtypes = [ctypes.c_uint32]
+        sdl.SDL_QuitSubSystem.restype = None
         sdl.SDL_QuitSubSystem(SDL_INIT_JOYSTICK)
 
 
@@ -159,6 +161,10 @@ def updated_config(original, assignments, enabled=True):
     # An existing manual mapping or joystick-selection add-on wins. Never
     # replace a user's independently managed input_playerN_joypad_index.
     if CONFLICT.search(base):
+        if has_block:
+            # An external editor added a manual index after Tarave's block.
+            # Remove only Tarave's block and yield control to that editor.
+            return base
         raise RuntimeError("existing RetroArch player-index overrides; leaving untouched")
     body = "\n".join('input_player%d_joypad_index = "%d"' % (n, index)
                      for n, index in sorted(assignments.items()))
@@ -184,10 +190,16 @@ def sync(preferences, devices, config_path=RETROARCH, enabled=True):
         if old == new:
             return False
         stat = config_path.stat()
+        # Atomic replacement must not silently change ownership of a shared
+        # RetroPie file. Do not escalate privileges or overwrite root files.
+        if stat.st_uid != os.geteuid():
+            raise RuntimeError("RetroArch config belongs to another user")
         fd, temp = tempfile.mkstemp(prefix=".tarave-joypads-", dir=config_path.parent)
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as output:
                 os.fchmod(output.fileno(), stat.st_mode & 0o777)
+                if stat.st_gid != os.getegid():
+                    os.fchown(output.fileno(), -1, stat.st_gid)
                 output.write(new)
                 output.flush()
                 os.fsync(output.fileno())
