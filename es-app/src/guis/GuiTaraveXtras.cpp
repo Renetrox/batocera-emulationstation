@@ -7,7 +7,6 @@
 #include "utils/FileSystemUtil.h"
 #include "renderers/Renderer.h"
 #include "components/BusyComponent.h"
-#include "guis/GuiInfoPopup.h"
 #include "guis/GuiMsgBox.h"
 #include "LocaleES.h"
 #include "Paths.h"
@@ -26,7 +25,7 @@
 
 static inline std::string trPorts(const std::string& key)
 {
-    return LocaleES::getInstance().translate(key);
+    return _(key.c_str());
 }
 
 static inline std::string trimPorts(const std::string& s)
@@ -188,12 +187,12 @@ void GuiTaraveXtras::setBusyVisible(bool visible)
 
 void GuiTaraveXtras::showPopup(const std::string& msg, int durationMs)
 {
-    mWindow->setInfoPopup(new GuiInfoPopup(mWindow, msg, durationMs));
+    mWindow->displayNotificationMessage(msg, durationMs);
 }
 
 bool GuiTaraveXtras::findRetroPieSetup()
 {
-    const std::string home = Utils::FileSystem::getHomePath();
+    const std::string home = Paths::getHomePath();
 
     std::vector<std::string> candidates;
 
@@ -399,7 +398,7 @@ bool GuiTaraveXtras::loadPorts()
             continue;
         bezel.section = "extras";
         bezel.installed = Utils::FileSystem::isRegularFile(
-            Utils::FileSystem::getHomePath() + "/RetroPie/retropiemenu/bezelproject.sh") ||
+            Paths::getHomePath() + "/RetroPie/retropiemenu/bezelproject.sh") ||
             Utils::FileSystem::isRegularFile(
                 "/opt/retropie/supplementary/bezelproject/bezelproject.sh");
         const auto existing = std::find_if(mPorts.begin(), mPorts.end(),
@@ -566,7 +565,7 @@ bool GuiTaraveXtras::hasCommand(const std::string& cmd) const
 
 std::string GuiTaraveXtras::gamePath(const PortEntry& game) const
 {
-    return Utils::FileSystem::getHomePath() +
+    return Paths::getHomePath() +
         "/RetroPie/roms/" + game.system + "/" + game.filename;
 }
 
