@@ -12,6 +12,7 @@
 #include "LocaleES.h"
 #include "guis/GuiMsgBox.h"
 #include "ContentInstaller.h"
+#include "RetroPieRuncommand.h"
 #include "GuiLoading.h"
 #include "guis/GuiTextEditPopup.h"
 #include "guis/GuiTextEditPopupKeyboard.h"
@@ -41,8 +42,8 @@ GuiBatoceraStore::GuiBatoceraStore(Window* window)
 	// Title
 	mHeaderGrid = std::make_shared<ComponentGrid>(mWindow, Vector2i(1, 5));
 
-	mTitle = std::make_shared<TextComponent>(mWindow, _("CONTENT DOWNLOADER"), theme->Title.font, theme->Title.color, ALIGN_CENTER);
-	mSubtitle = std::make_shared<TextComponent>(mWindow, _("SELECT CONTENT TO INSTALL/REMOVE"), theme->TextSmall.font, theme->TextSmall.color, ALIGN_CENTER);
+	mTitle = std::make_shared<TextComponent>(mWindow, RetroPieRuncommand::enabled() ? "X-TRAS" : _("CONTENT DOWNLOADER"), theme->Title.font, theme->Title.color, ALIGN_CENTER);
+	mSubtitle = std::make_shared<TextComponent>(mWindow, RetroPieRuncommand::enabled() ? _("PORTS AND FREE GAMES") : _("SELECT CONTENT TO INSTALL/REMOVE"), theme->TextSmall.font, theme->TextSmall.color, ALIGN_CENTER);
 	mHeaderGrid->setEntry(mTitle, Vector2i(0, 1), false, true);
 	mHeaderGrid->setEntry(mSubtitle, Vector2i(0, 3), false, true);
 
@@ -61,7 +62,8 @@ GuiBatoceraStore::GuiBatoceraStore(Window* window)
 	std::vector< std::shared_ptr<ButtonComponent> > buttons;
 	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, _("SEARCH"), _("SEARCH"), [this] {  showSearch(); }));
 	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, _("REFRESH"), _("REFRESH"), [this] {  loadPackagesAsync(true, true); }));
-	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, _("UPDATE INSTALLED CONTENT"), _("UPDATE INSTALLED CONTENT"), [this] {  loadPackagesAsync(true, false); }));
+	if (!RetroPieRuncommand::enabled())
+		buttons.push_back(std::make_shared<ButtonComponent>(mWindow, _("UPDATE INSTALLED CONTENT"), _("UPDATE INSTALLED CONTENT"), [this] {  loadPackagesAsync(true, false); }));
 	buttons.push_back(std::make_shared<ButtonComponent>(mWindow, _("BACK"), _("BACK"), [this] { delete this; }));
 
 	mButtonGrid = makeButtonGrid(mWindow, buttons);
@@ -184,6 +186,11 @@ void GuiBatoceraStore::loadList(bool updatePackageList, bool restoreIndex)
 			gps.push_back(gp);
 
 		std::sort(gps.begin(), gps.end());
+		if (RetroPieRuncommand::enabled())
+		{
+			auto it = std::find(gps.begin(), gps.end(), "JUEGOS LIBRES");
+			if (it != gps.end()) std::rotate(gps.begin(), it, it + 1);
+		}
 		for (auto group : gps)
 			mTabs->addTab(group);
 
