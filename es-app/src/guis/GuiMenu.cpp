@@ -12,6 +12,7 @@
 #include "guis/GuiThemeInstaller.h"
 #include "guis/GuiBezelInstaller.h"
 #include "guis/GuiBatoceraStore.h"
+#include "guis/GuiTaraveXtras.h"
 #include "guis/GuiSettings.h"
 #include "guis/GuiRetroAchievements.h"
 #include "guis/GuiGamelistOptions.h"
@@ -1214,6 +1215,18 @@ void GuiMenu::openUpdatesSettings()
 
 	updateGui->addGroup(_("DOWNLOADS"));
 
+	// On standalone RetroPie use the existing ES-X X-TRAS browser instead
+	// of Batocera's unrelated package manager. Other builds stay unchanged.
+#if !defined(BATOCERA) && !defined(RETROBAT) && !defined(WIN32)
+	if (RetroPieRuncommand::enabled())
+	{
+		updateGui->addEntry("X-TRAS", true, [this]
+		{
+			mWindow->pushGui(new GuiTaraveXtras(mWindow));
+		});
+	}
+	else
+#endif
 	if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::BATOCERASTORE))
 	{
 		updateGui->addEntry(_("CONTENT DOWNLOADER"), true, [this]

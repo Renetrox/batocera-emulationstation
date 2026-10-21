@@ -1,0 +1,122 @@
+// es-app/src/guis/GuiTaraveXtras.h
+#pragma once
+
+#include "GuiComponent.h"
+#include "components/ComponentList.h"
+#include "components/TextComponent.h"
+#include "components/NinePatchComponent.h"
+
+#include <string>
+#include <vector>
+#include <thread>
+#include <atomic>
+#include <mutex>
+#include <functional>
+#include <memory>
+
+// Experimental reuse of ES-X's X-TRAS browser, adapted for Tarave's
+// private configuration and RetroPie's native module installer.
+class BusyComponent;
+
+class GuiTaraveXtras : public GuiComponent
+{
+public:
+    GuiTaraveXtras(Window* window);
+    ~GuiTaraveXtras() override;
+
+    bool input(InputConfig* config, Input input) override;
+    void update(int deltaTime) override;
+    void render(const Transform4x4f& parentTrans) override;
+
+    std::vector<HelpPrompt> getHelpPrompts() override;
+    void updateHelpPrompts();
+
+private:
+    struct PortEntry
+    {
+        std::string id;
+        std::string description;
+        std::string section;
+        std::string flags;
+        bool installed = false;
+
+        // X-TRAS: free games share the browser with RetroPie ports.
+        bool isGame = false;
+        std::string system;
+        std::string url;
+        std::string filename;
+        std::string author;
+        std::string license;
+        std::string summary;
+    };
+
+    void setBusyVisible(bool visible);
+    void showPopup(const std::string& msg, int durationMs);
+    void rebuildList();
+    void updateFooter();
+
+    bool findRetroPieSetup();
+    bool loadPorts();
+    bool readModuleMetadata(const std::string& path, PortEntry& entry) const;
+    bool canUseSudo() const;
+
+    bool installOrUpdatePort(const PortEntry& port);
+    bool removePort(const PortEntry& port);
+
+    // X-TRAS: minimal free-games backend.
+    void loadFreeGames();
+    bool hasCommand(const std::string& cmd) const;
+    std::string gamePath(const PortEntry& game) const;
+    bool downloadGame(const PortEntry& game);
+    bool removeGame(const PortEntry& game);
+
+    std::string sectionName(const std::string& section) const;
+    int sectionRank(const std::string& section) const;
+
+    int runCmd(const std::string& cmd);
+
+    void startJob(const std::string& busyMsg,
+                  std::function<bool()> fn,
+                  const std::string& okMsg,
+                  const std::string& failMsg,
+                  bool refreshPorts);
+
+    void updateJobProgress();
+    void finishJobIfDone();
+
+private:
+    NinePatchComponent mFrame;
+    ComponentList mList;
+    TextComponent mHeader;
+    TextComponent mSubHeader;
+    TextComponent mFooter;
+
+    std::string mRetroPieSetupDir;
+    std::string mPackagesScript;
+    std::string mPortsModulesDir;
+    std::string mLogPath;
+
+    std::vector<PortEntry> mPorts;
+    int mLastSelectedIndex;
+
+    float mInnerX;
+    float mInnerY;
+    float mInnerW;
+    float mInnerH;
+
+    std::unique_ptr<BusyComponent> mBusy;
+    bool mBusyVisible;
+
+    std::thread mJobThread;
+    std::mutex mJobMutex;
+    std::atomic<bool> mJobRunning;
+    std::atomic<bool> mJobDone;
+    bool mJobOk;
+    bool mJobRefreshPorts;
+    int mProgressPollMs;
+    long long mJobLogStart;
+    std::string mJobInitialLabel;
+    std::string mJobStageLabel;
+    std::string mJobPortId;
+    std::string mJobDoneMsg;
+};

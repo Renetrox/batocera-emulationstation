@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - experiment/retropie-standalone-20261013
+      - experiment/tarave-xtras-20261021
       - experiment/retropie-player-order-20261021
       - experiment/retropie-runcommand-bridge
   workflow_dispatch:
@@ -20,6 +21,8 @@ jobs:
           -o /tmp/tarave-runcommand-test
       - name: Run backend tests
         run: /tmp/tarave-runcommand-test
+      - name: Check Tarave X-TRAS sources and private catalog
+        run: python3 -m unittest discover -s tests -p test_tarave_xtras.py -v
       - name: Test Tarave RetroArch player order bridge
         run: python3 -m unittest discover -s tests -p test_retropie_player_order.py -v
       - name: Test RetroPie settings-menu detection
