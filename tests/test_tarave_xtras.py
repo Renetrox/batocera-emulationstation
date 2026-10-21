@@ -48,7 +48,7 @@ class TaraveXtrasTests(unittest.TestCase):
         self.assertIn('"/scriptmodules/supplementary"', self.code)
         self.assertIn('"/bezelproject.sh"', self.code)
         self.assertIn('port.id', self.code)
-        self.assertIn('"_autoupdate_"', self.code)
+        self.assertIn(' _autoupdate_ >> ', self.code)
 
     def test_copy_installed_with_frontend(self):
         self.assertIn("src/guis/GuiTaraveXtras.h", self.cmake)
