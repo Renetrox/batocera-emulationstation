@@ -127,7 +127,7 @@ GuiTaraveXtras::GuiTaraveXtras(Window* window)
     const float frameX = (sw - frameW) * 0.5f;
     const float frameY = (sh - frameH) * 0.5f;
 
-    mFrame.setImagePath(":/frame_dark.png");
+    mFrame.setImagePath(":/frame.png");
     mFrame.setPosition(Vector3f(frameX, frameY, 0.0f));
     mFrame.setSize(Vector2f(frameW, frameH));
     mFrame.setCornerSize(Vector2f(16.0f, 16.0f));
