@@ -12,6 +12,7 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <sys/wait.h>
+#include <cerrno>
 #endif
 
 #include <fcntl.h>
@@ -154,39 +155,47 @@ namespace Utils
 
 			return 1;
 #else
-			// getting the output when in a pipe is not easy...
-			// https://stackoverflow.com/questions/1221833/pipe-output-and-capture-exit-status-in-bash
-			std::string cmdOutput = "((((" + cmd_utf8 + " 2> " + Utils::FileSystem::combine(Paths::getLogPath(), stderrFilename) + " ; echo $? >&3) | head -300 > " + Utils::FileSystem::combine(Paths::getLogPath(), stdoutFilename) + ") 3>&1) | (read xs; exit $xs))";
-			if (!Log::enabled())
-			  cmdOutput = "((((" + cmd_utf8 + " 2> /dev/null ; echo $? >&3) | head -300 > /dev/null) 3>&1) | (read xs; exit $xs))";
-
-			if (waitForExit) {
-			  int n = system(cmdOutput.c_str());
-			  return WEXITSTATUS(n);
-			}
-
-			// fork the current process
-			pid_t ret = fork();
-			if (ret == 0)
+			// RetroPie setup and other terminal applications must inherit stdin,
+			// stdout and stderr. Piping their output through "head -300" can
+			// interrupt installers with SIGPIPE and break interactive dialogs.
+			if (waitForExit)
 			{
-				ret = fork();
-				if (ret == 0)
-				{
-					execl("/bin/sh", "sh", "-c", cmdOutput.c_str(), (char *) NULL);
-					_exit(1); // execl failed
-				}
-				_exit(0); // exit the child process
-			}
-			else
-			{
-				if (ret > 0)
-				{
-					int status;
-					waitpid(ret, &status, 0); // keep calm and kill zombies
-				}
+				int status = system(cmd_utf8.c_str());
+				if (status == -1)
+					return 1;
+
+				if (WIFEXITED(status))
+					return WEXITSTATUS(status);
+				if (WIFSIGNALED(status))
+					return 128 + WTERMSIG(status);
+				return 1;
 			}
 
-			return 0;
+			// Retain detached launches for commands that do not request a wait.
+			pid_t child = fork();
+			if (child < 0)
+				return 1;
+
+			if (child == 0)
+			{
+				pid_t grandchild = fork();
+				if (grandchild < 0)
+					_exit(1);
+				if (grandchild == 0)
+				{
+					execl("/bin/sh", "sh", "-c", cmd_utf8.c_str(), (char*)NULL);
+					_exit(127);
+				}
+				_exit(0);
+			}
+
+			int status = 0;
+			while (waitpid(child, &status, 0) == -1)
+			{
+				if (errno != EINTR)
+					return 1;
+			}
+			return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
 #endif
 		}
 
