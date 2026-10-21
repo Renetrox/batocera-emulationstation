@@ -118,7 +118,6 @@ GuiTaraveXtras::GuiTaraveXtras(Window* window)
     mJobStageLabel.clear();
     mJobPortId.clear();
 
-    const std::string home = Utils::FileSystem::getHomePath();
     mLogPath = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";
 
     const float sw = (float)Renderer::getScreenWidth();
@@ -443,7 +442,7 @@ bool GuiTaraveXtras::loadPorts()
 void GuiTaraveXtras::loadFreeGames()
 {
     // X-TRAS catalog:
-    // ~/.emulationstation/esx/xtras-free-games.ini
+    // Tarave private xtras/xtras-free-games.ini
     //
     // Only entries with ready=yes and a non-empty direct download URL
     // are exposed to the user. This lets the catalog keep verified
