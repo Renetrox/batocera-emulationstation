@@ -490,8 +490,29 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 	if (RetroPieRuncommand::handlesSystem(system->getName()))
 	{
 		LOG(LogInfo) << "Tarave: launching " << system->getName() << " with RetroPie runcommand";
-		return std::string("/opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ ") +
+		const std::string runcommand =
+			std::string("/opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ ") +
 			system->getName() + " " + Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
+
+#if !defined(BATOCERA) && !defined(RETROBAT)
+		// Only the optional, explicitly saved player order is synchronized.
+		// A failed preflight must never prevent a game from launching.
+		const std::string helper = ResourceManager::getInstance()->getResourcePath(":/retropie-player-order.py");
+		if (Utils::FileSystem::exists(helper))
+		{
+			auto quoteShell = [](const std::string& value)
+			{
+				std::string quoted = "'";
+				for (char ch : value)
+					quoted += ch == '\'' ? "'\\''" : std::string(1, ch);
+				return quoted + "'";
+			};
+			const std::string savedSettings = Paths::getUserEmulationStationPath() + "/es_settings.cfg";
+			return "python3 " + quoteShell(helper) + " --settings " + quoteShell(savedSettings) +
+				" ; exec " + runcommand;
+		}
+#endif
+		return runcommand;
 	}
 #endif
 

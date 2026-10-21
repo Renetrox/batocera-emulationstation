@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - experiment/retropie-standalone-20261013
+      - experiment/retropie-player-order-20261021
       - experiment/retropie-runcommand-bridge
   workflow_dispatch:
 
@@ -19,6 +20,8 @@ jobs:
           -o /tmp/tarave-runcommand-test
       - name: Run backend tests
         run: /tmp/tarave-runcommand-test
+      - name: Test Tarave RetroArch player order bridge
+        run: python3 -m unittest discover -s tests -p test_retropie_player_order.py -v
       - name: Test RetroPie settings-menu detection
         run: bash tests/test_tarave_retropie_menu.sh
       - name: Test standalone restart, power and language wiring
