@@ -1142,7 +1142,7 @@ bool GuiTaraveXtras::input(InputConfig* config, Input input)
     if (config->isMappedTo("b", input) ||
         config->isMappedTo("back", input))
     {
-        mWindow->removeGui(this);
+        delete this;
         return true;
     }
 
