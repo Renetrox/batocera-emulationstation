@@ -17,6 +17,7 @@
 // Experimental reuse of ES-X's X-TRAS browser, adapted for Tarave's
 // private configuration and RetroPie's native module installer.
 class BusyComponent;
+class AsyncNotificationComponent;
 
 class GuiTaraveXtras : public GuiComponent
 {
@@ -104,6 +105,7 @@ private:
     float mInnerW;
     float mInnerH;
 
+    AsyncNotificationComponent* mJobNotification = nullptr;
     std::unique_ptr<BusyComponent> mBusy;
     bool mBusyVisible;
 
