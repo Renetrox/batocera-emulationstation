@@ -7,6 +7,7 @@
 #include "utils/FileSystemUtil.h"
 #include "renderers/Renderer.h"
 #include "components/BusyComponent.h"
+#include "components/AsyncNotificationComponent.h"
 #include "guis/GuiMsgBox.h"
 #include "LocaleES.h"
 #include "Paths.h"
@@ -176,6 +177,12 @@ GuiTaraveXtras::~GuiTaraveXtras()
 {
     if (mJobThread.joinable())
         mJobThread.join();
+
+    if (mJobNotification)
+    {
+        mJobNotification->close();
+        mJobNotification = nullptr;
+    }
 }
 
 void GuiTaraveXtras::setBusyVisible(bool visible)
@@ -961,7 +968,15 @@ void GuiTaraveXtras::startJob(const std::string& busyMsg,
     }
 
     setBusyVisible(true);
-    showPopup(busyMsg, 1200);
+
+    // Reuse Tarave's native asynchronous notification. A negative percentage
+    // deliberately hides the bar until the installer reports a real value.
+    if (mJobNotification)
+        mJobNotification->close();
+    mJobNotification = mWindow->createAsyncNotificationComponent();
+    mJobNotification->updateTitle(trPorts("X-TRAS"));
+    mJobNotification->updateText(busyMsg);
+    mJobNotification->updatePercent(-1);
 
     if (mJobThread.joinable())
         mJobThread.join();
@@ -1096,6 +1111,11 @@ void GuiTaraveXtras::updateJobProgress()
         label += "  " + std::to_string(percent) + "%";
 
     mBusy->setText(label);
+    if (mJobNotification)
+    {
+        mJobNotification->updateText(label);
+        mJobNotification->updatePercent(percent);
+    }
 }
 
 void GuiTaraveXtras::finishJobIfDone()
@@ -1107,6 +1127,11 @@ void GuiTaraveXtras::finishJobIfDone()
         mJobThread.join();
 
     setBusyVisible(false);
+    if (mJobNotification)
+    {
+        mJobNotification->close();
+        mJobNotification = nullptr;
+    }
 
     std::string msg;
     bool ok = false;
