@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - experiment/retropie-standalone-20261013
+      - fix/tarave-media-picker-progress-20261025
       - experiment/tarave-xtras-20261021
       - experiment/tarave-xtras-native-store-20261021
       - experiment/retropie-player-order-20261021

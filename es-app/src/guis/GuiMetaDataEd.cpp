@@ -270,9 +270,9 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 				type = (GuiFileBrowser::FileTypes) (GuiFileBrowser::FileTypes::IMAGES | GuiFileBrowser::FileTypes::MANUALS);
 
 			auto updateVal = [ed, relativePath](const std::string& newVal)
-			{ 
-				auto val = Utils::FileSystem::createRelativePath(newVal, relativePath, true);
-				ed->setValue(val);
+			{
+				// RESET must clear the metadata field, not produce a relative path.
+				ed->setValue(newVal.empty() ? "" : Utils::FileSystem::createRelativePath(newVal, relativePath, true));
 			};
 
 			row.makeAcceptInputHandler([this, type, ed, iter, updateVal, relativePath]
@@ -281,9 +281,11 @@ GuiMetaDataEd::GuiMetaDataEd(Window* window, MetaDataList* md, const std::vector
 				if (!filePath.empty())
 					filePath = Utils::FileSystem::resolveRelativePath(filePath, relativePath, true);
 				
-				std::string dir = Utils::FileSystem::getParent(filePath);
-				//if (dir.empty())
-				//	dir = relativePath;
+				// A new media field has no file parent. Start in this
+				// system's ROM directory, not a stale screenshots directory.
+				std::string dir = filePath.empty() ? relativePath : Utils::FileSystem::getParent(filePath);
+				if (!Utils::FileSystem::isDirectory(dir))
+					dir = relativePath;
 					
 				std::string title = iter->displayName + " - " + mMetaData->getName();
 				mWindow->pushGui(new GuiFileBrowser(mWindow, dir, filePath, type, updateVal, title));

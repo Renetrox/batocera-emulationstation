@@ -29,6 +29,16 @@ Batocera's built-in themes downloader remains unchanged.
   `<Tarave private .emulationstation>/xtras/xtras-free-games.ini`.
   If absent, the bundled catalog is used. No ES-X installation is required.
 
+**Progress (experimental test):** The native Content Downloader now receives
+RetroPie-Setup installation stages from its captured output. When the active
+CMake/make build prints `[ NN%]`, X-TRAS displays `COMPILANDO NN%` for **that
+build stage only**, not a made-up overall port-installation percentage. Other
+stages (dependencies, download, extraction, installation) use an indeterminate
+indicator. Homebrew ROM downloads do not yet expose a live transfer percentage.
+Output is also kept in Tarave's private `xtras/xtras.log`. Noninteractive
+`sudo -n` authorization is still required for port installs; this is not a
+replacement for interactive RetroPie-Setup. This does not add job cancellation.
+
 **Limits:** The Bezel Project uses its own RetroPie utility. The service
 looks up RetroPie-Setup using the OS login user's actual home directory,
 not Tarave's private --home path. If ports still do not appear, check
