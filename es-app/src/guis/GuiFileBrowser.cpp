@@ -105,12 +105,14 @@ void GuiFileBrowser::navigateTo(const std::string path)
 			if (file.directory || file.hidden)
 				continue;
 
-			std::string ext = Utils::FileSystem::getExtension(file.path);
+			// The filesystem is case-sensitive on Linux, but media extensions
+			// need to be recognized regardless of how the file was named.
+			std::string ext = Utils::String::toLower(Utils::FileSystem::getExtension(file.path));
 
 			std::string icon;
 
 			if ((mTypes & FileTypes::IMAGES) == FileTypes::IMAGES)
-				if (ext == ".jpg" || ext == ".png" || ext == ".gif" || ext == ".svg")
+				if (ext == ".jpg" || ext == ".jpeg" || ext == ".png" || ext == ".gif" || ext == ".svg")
 					icon = IMAGE_ICON;
 
 			if ((mTypes & FileTypes::MANUALS) == FileTypes::MANUALS)
@@ -195,7 +197,7 @@ bool GuiFileBrowser::input(InputConfig* config, Input input)
 		return true;
 	}
 	
-	if (config->isMappedTo("select", input))
+	if (config->isMappedTo("select", input) && input.value != 0)
 	{
 		navigateTo(Paths::getScreenShotPath());
 		return true;
