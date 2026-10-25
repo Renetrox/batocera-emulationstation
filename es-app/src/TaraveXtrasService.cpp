@@ -237,6 +237,82 @@ std::pair<std::string, int> command(const std::string& cmd) {
 #endif
 }
 
+// Stream RetroPie-Setup output into Tarave's private log and its native
+// ContentInstaller notification. Never fabricate total install progress.
+std::pair<std::string, int> portCommandWithProgress(
+    const std::string& cmd, const std::string& logPath,
+    const std::function<void(const std::string)>& notify) {
+#if defined(WIN32)
+    (void)cmd; (void)logPath; (void)notify;
+    return {"RetroPie commands are unavailable on this platform.", 1};
+#else
+    FILE* pipe = popen((cmd + " 2>&1").c_str(), "r");
+    if (!pipe) return {"Could not start RetroPie-Setup; see X-TRAS log.", 1};
+
+    std::ofstream log(logPath, std::ios::app | std::ios::binary);
+    std::string stage;
+    int lastPercent = -1;
+    const auto setStage = [&](const std::string& label) {
+        if (stage == label) return;
+        stage = label;
+        lastPercent = -1;
+        if (notify) notify(label); // Spinner until the current stage reports %.
+    };
+    const auto parseLine = [&](const std::string& raw) {
+        const std::string line = trim(raw);
+        if (line.empty()) return;
+        if (line.find("Installing dependencies for '") != std::string::npos)
+            setStage("DEPENDENCIAS");
+        else if (line.find("Building '") != std::string::npos)
+            setStage("COMPILANDO");
+        else if (line.find("Downloading ") != std::string::npos)
+            setStage("DESCARGANDO");
+        else if (line.find("Extracting ") != std::string::npos)
+            setStage("EXTRAYENDO");
+        else if (line.find("Installing '") != std::string::npos ||
+                 line.find("-- Installing:") != std::string::npos)
+            setStage("INSTALANDO ARCHIVOS");
+
+        // CMake/make emits "[ 42%]": build-stage progress, not total progress.
+        const auto percentEnd = line.find("%]");
+        if (stage != "COMPILANDO" || percentEnd == std::string::npos) return;
+        const auto open = line.rfind('[', percentEnd);
+        if (open == std::string::npos) return;
+        const std::string number = trim(line.substr(open + 1, percentEnd - open - 1));
+        if (number.empty() || number.size() > 3 ||
+            !std::all_of(number.begin(), number.end(), [](unsigned char c) { return std::isdigit(c) != 0; }))
+            return;
+        const int percent = std::atoi(number.c_str());
+        if (percent >= 0 && percent <= 100 && percent != lastPercent) {
+            lastPercent = percent;
+            if (notify) notify(stage + " >>> " + std::to_string(percent) + "%");
+        }
+    };
+
+    std::string pending;
+    char chunk[4096];
+    while (std::fgets(chunk, sizeof(chunk), pipe)) {
+        if (log) log << chunk;
+        pending += chunk;
+        size_t end;
+        while ((end = pending.find_first_of("\r\n")) != std::string::npos) {
+            parseLine(pending.substr(0, end));
+            pending.erase(0, end + 1);
+        }
+        if (pending.size() > 16384) {
+            parseLine(pending);
+            pending.clear();
+        }
+    }
+    if (!pending.empty()) parseLine(pending);
+    if (log) log.flush();
+    const int status = pclose(pipe);
+    if (status != -1 && WIFEXITED(status) && WEXITSTATUS(status) == 0)
+        return {"", 0};
+    return {"RetroPie-Setup failed; check X-TRAS log and sudo -n permissions.", 1};
+#endif
+}
+
 std::pair<std::string, int> execute(const std::string& id, bool uninstall,
                                     const std::function<void(const std::string)>& notify) {
     const auto root = setupRoot();
@@ -290,9 +366,9 @@ std::pair<std::string, int> execute(const std::string& id, bool uninstall,
     const auto log = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";
     Utils::FileSystem::createDirectory(Utils::FileSystem::getParent(log));
     if (notify) notify((uninstall ? "Removing " : "Installing ") + moduleId);
-    return command("sudo -n " + quote(root + "/retropie_packages.sh") + " " +
-        quote(moduleId) + (uninstall ? " remove" : " _autoupdate_") +
-        " >> " + quote(log) + " 2>&1");
+    return portCommandWithProgress(
+        "sudo -n " + quote(root + "/retropie_packages.sh") + " " +
+        quote(moduleId) + (uninstall ? " remove" : " _autoupdate_"), log, notify);
 }
 }
 
