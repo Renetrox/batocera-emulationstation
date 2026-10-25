@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - experiment/retropie-standalone-20261013
+      - fix/tarave-media-picker-progress-20261025
       - experiment/tarave-xtras-20261021
       - experiment/tarave-xtras-native-store-20261021
       - experiment/retropie-player-order-20261021
@@ -24,6 +25,8 @@ jobs:
         run: /tmp/tarave-runcommand-test
       - name: Check Tarave X-TRAS sources and private catalog
         run: python3 -m unittest discover -s tests -p test_tarave_xtras.py -v
+      - name: Test manual media picker paths and filters
+        run: python3 -m unittest discover -s tests -p test_tarave_media_picker.py -v
       - name: Test Tarave RetroArch player order bridge
         run: python3 -m unittest discover -s tests -p test_retropie_player_order.py -v
       - name: Test RetroPie settings-menu detection
