@@ -64,6 +64,15 @@ class TaraveXtrasTests(unittest.TestCase):
         self.assertIn('if (RetroPieRuncommand::enabled()) return; // Never run batocera-store update', self.api)
         self.assertIn('mWindow->pushGui(new GuiThemeInstaller(mWindow));', self.menu)
 
+    def test_ports_report_real_stage_progress_without_fake_total(self):
+        self.assertIn('portCommandWithProgress(', self.service)
+        self.assertIn('popen((cmd + " 2>&1").c_str(), "r")', self.service)
+        self.assertIn('log << chunk', self.service)
+        self.assertIn('line.find("%]")', self.service)
+        self.assertIn('stage != "COMPILANDO"', self.service)
+        self.assertIn('notify(stage + " >>> " + std::to_string(percent) + "%")', self.service)
+        self.assertIn('log, notify);', self.service)
+
     def test_non_destructive_download_and_cleanup(self):
         self.assertIn('".tarave-part"', self.service)
         self.assertIn('std::rename(tmp.c_str(), dst.c_str())', self.service)
