@@ -79,7 +79,7 @@ Then start `batocera-es-test` and check:
 1. **Updates & Downloads → X-TRAS** is visible.
 2. Licensed `ready=yes` homebrew entries appear without requiring ES-X.
 3. The store's **PORTS** tab shows RetroPie-Setup and RetroPie-Extra ports.
-4. The **HERRAMIENTAS** tab includes Bezel Project if RetroPie-Extra has
+4. The **TOOLS** tab includes Bezel Project if RetroPie-Extra has
    registered its supplementary module.
 5. A selected game's download appears in `$HOME/RetroPie/roms/<system>/`.
 6. A/confirm and B/back follow the same mappings as the rest of Tarave,
