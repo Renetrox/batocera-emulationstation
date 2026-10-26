@@ -64,6 +64,21 @@ class TaraveXtrasTests(unittest.TestCase):
         self.assertIn('if (RetroPieRuncommand::enabled()) return; // Never run batocera-store update', self.api)
         self.assertIn('mWindow->pushGui(new GuiThemeInstaller(mWindow));', self.menu)
 
+    def test_xtras_tabs_remain_english_on_retropie(self):
+        # Group names are filter identities in the native content store,
+        # not just cosmetic labels. Keep the service and selected tab in sync.
+        self.assertIn('p.repository = "FREE GAMES"', self.service)
+        self.assertIn('p.repository = "PORTS"', self.service)
+        self.assertIn('p.repository = "TOOLS"', self.service)
+        self.assertNotIn('p.repository = "JUEGOS LIBRES"', self.service)
+        self.assertNotIn('p.repository = "HERRAMIENTAS"', self.service)
+        self.assertIn(
+            'std::find(gps.begin(), gps.end(), "FREE GAMES")', self.store)
+        self.assertNotIn(
+            'std::find(gps.begin(), gps.end(), "JUEGOS LIBRES")', self.store)
+        # Batocera's real package store retains its own localization path.
+        self.assertIn('if (RetroPieRuncommand::enabled())', self.store)
+
     def test_ports_report_real_stage_progress_without_fake_total(self):
         self.assertIn('portCommandWithProgress(', self.service)
         self.assertIn('popen((cmd + " 2>&1").c_str(), "r")', self.service)
