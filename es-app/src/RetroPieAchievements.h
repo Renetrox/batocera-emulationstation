@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <cctype>
 #include <fstream>
+#include <chrono>
+#include <mutex>
 #include <string>
 
 namespace RetroPieAchievements
@@ -78,6 +80,19 @@ inline Status read(const std::string& path)
 
 inline Status read()
 {
-    return read("/opt/retropie/configs/all/retroarch.cfg");
+    // Themes and system bindings can query this on every frame. Avoid
+    // repeatedly opening the RetroArch configuration on small SBCs, while
+    // still discovering edits performed through RetroPie/RetroArch.
+    static std::mutex guard;
+    static std::chrono::steady_clock::time_point expires;
+    static Status cached;
+    const std::lock_guard<std::mutex> lock(guard);
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= expires)
+    {
+        cached = read("/opt/retropie/configs/all/retroarch.cfg");
+        expires = now + std::chrono::seconds(2);
+    }
+    return cached;
 }
 } // namespace RetroPieAchievements
