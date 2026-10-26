@@ -2,6 +2,7 @@
 
 #include "SystemConf.h"
 #include "RetroPieRuncommand.h"
+#include "RetroPieAchievements.h"
 #include "RetroPieGamelist.h"
 #include <cstdlib>
 #include "utils/FileSystemUtil.h"
@@ -1615,8 +1616,19 @@ void SystemData::loadTheme()
 		sysData["global.clock"] = Settings::DrawClock() ? "true" : "false";
 		sysData["global.architecture"] = Utils::Platform::getArchString();
 
-		sysData["global.cheevos"] = SystemConf::getInstance()->getBool("global.retroachievements") ? "true" : "false";
-		sysData["global.cheevos.username"] = SystemConf::getInstance()->getBool("global.retroachievements") ? SystemConf::getInstance()->get("global.retroachievements.username") : "";
+		// RetroPie is responsible for real RetroArch achievements settings.
+		// Theme variables must reflect the user's active RetroArch config,
+		// never an unrelated Tarave-private Batocera setting.
+		const bool retroPie = RetroPieRuncommand::enabled();
+		const RetroPieAchievements::Status retroPieCheevos =
+			retroPie ? RetroPieAchievements::read() : RetroPieAchievements::Status();
+		const bool cheevosEnabled = retroPie ? retroPieCheevos.enabled :
+			SystemConf::getInstance()->getBool("global.retroachievements");
+		const std::string cheevosUser = !cheevosEnabled ? "" : (retroPie ?
+			retroPieCheevos.username :
+			SystemConf::getInstance()->get("global.retroachievements.username"));
+		sysData["global.cheevos"] = cheevosEnabled ? "true" : "false";
+		sysData["global.cheevos.username"] = cheevosUser;
 
 		sysData["global.netplay"] = SystemConf::getInstance()->getBool("global.netplay") ? "true" : "false";
 		sysData["global.netplay.username"] = SystemConf::getInstance()->getBool("global.netplay") ? SystemConf::getInstance()->get("global.netplay.nickname") : "";
@@ -1628,10 +1640,10 @@ void SystemData::loadTheme()
 		sysData["screen.vertical"] = Renderer::isVerticalScreen() ? "true" : "false";
 
 		// Retrocompatibility
-		sysData["cheevos.username"] = SystemConf::getInstance()->getBool("global.retroachievements") ? SystemConf::getInstance()->get("global.retroachievements.username") : "";
+		sysData["cheevos.username"] = cheevosUser;
 
 		// System variables
-		sysData["system.cheevos"] = SystemConf::getInstance()->getBool("global.retroachievements") && (isCheevosSupported() || isCollection()) ? "true" : "false";
+		sysData["system.cheevos"] = cheevosEnabled && (isCheevosSupported() || isCollection()) ? "true" : "false";
 		sysData["system.netplay"] = SystemConf::getInstance()->getBool("global.netplay") && isNetplaySupported() ? "true" : "false";
 		sysData["system.savestates"] = isCurrentFeatureSupported(EmulatorFeatures::autosave) ? "true" : "false";
 
@@ -1799,6 +1811,22 @@ bool SystemData::isCheevosSupported()
 				}
 			}
 
+			return false;
+		}
+
+		// On RetroPie, native ES-Batocera core metadata is often absent.
+		// Use the actual installed Runcommand core IDs instead; this only
+		// means the system has a libretro core available, not that each
+		// installed game earns achievements. Game badges additionally need
+		// an indexed, positive RetroAchievements game ID.
+		if (RetroPieRuncommand::handlesSystem(getName()))
+		{
+			for (const std::string& core : RetroPieRuncommand::emulators(getName()))
+				if (core.compare(0, 3, "lr-") == 0)
+				{
+					mIsCheevosSupported = 1;
+					return true;
+				}
 			return false;
 		}
 
@@ -2175,7 +2203,10 @@ bool SystemData::getShowFavoritesIcon()
 
 bool SystemData::getShowCheevosIcon()
 {
-	if (getName() != "retroachievements" && SystemConf::getInstance()->getBool("global.retroachievements"))
+	const bool enabled = RetroPieRuncommand::enabled()
+		? RetroPieAchievements::read().enabled
+		: SystemConf::getInstance()->getBool("global.retroachievements");
+	if (getName() != "retroachievements" && enabled)
 		return isCollection() || isCheevosSupported();
 
 	return false;
