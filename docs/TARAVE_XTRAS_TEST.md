@@ -11,6 +11,11 @@ styling) to display the X-TRAS catalogue under
 **Main menu → Updates & Downloads → X-TRAS**. Only the service backend changes;
 Batocera's built-in themes downloader remains unchanged.
 
+**Tab labels (RetroPie):** `FREE GAMES`, `PORTS`, and `TOOLS` stay in
+English. These labels are currently X-TRAS repository/filter identifiers,
+not entries from Batocera's translation catalog. The general Tarave locale
+system and translated menus are left unchanged.
+
 - Discover modules from RetroPie-Setup `scriptmodules/ports`, including
   compatible third-party modules in `ext/*/scriptmodules/ports`.
 - Include the **Bezel Project** RetroPie-Extra supplementary module explicitly
