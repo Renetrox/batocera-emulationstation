@@ -188,7 +188,7 @@ void GuiBatoceraStore::loadList(bool updatePackageList, bool restoreIndex)
 		std::sort(gps.begin(), gps.end());
 		if (RetroPieRuncommand::enabled())
 		{
-			auto it = std::find(gps.begin(), gps.end(), "JUEGOS LIBRES");
+			auto it = std::find(gps.begin(), gps.end(), "FREE GAMES");
 			if (it != gps.end()) std::rotate(gps.begin(), it, it + 1);
 		}
 		for (auto group : gps)
