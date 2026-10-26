@@ -36,6 +36,20 @@ class StandaloneMenuTests(unittest.TestCase):
         self.assertIn('execv("/proc/self/exe", argv);', main)
         self.assertIn("TARAVE_PORTABLE_LOCALE", main)
 
+    def test_retropie_cheevos_theme_binding(self):
+        systems = read("es-app/src/SystemData.cpp")
+        original = read("es-app/src/FileData.cpp")
+        adapter = read("es-app/src/RetroPieAchievements.h")
+        self.assertIn("RetroPieAchievements::read()", systems)
+        self.assertIn('sysData["global.cheevos"] = cheevosEnabled', systems)
+        self.assertIn('sysData["cheevos.username"] = cheevosUser', systems)
+        self.assertIn('sysData["system.cheevos"] = cheevosEnabled', systems)
+        self.assertIn('core.compare(0, 3, "lr-") == 0', systems)
+        self.assertIn("MetaDataId::CheevosId", original)
+        self.assertIn("if (key != \"cheevos_enable\" && key != \"cheevos_username\")", adapter)
+        self.assertNotIn("cheevos_password", adapter)
+        self.assertNotIn("cheevos_token", adapter)
+
     def test_translations_reuse_bundled_po(self):
         cmake = read("CMakeLists.txt")
         locale = read("es-core/src/LocaleES.cpp")
