@@ -4,6 +4,32 @@ Status: **design/audit only; no gameplay or credential-handling changes enabled*
 This document describes the non-Batocera Runcommand build used by
 `experiment/retropie-standalone-20261013`.
 
+## Implemented: read-only theme compatibility (26 October 2026)
+
+The first non-invasive integration is now in the experimental Tarave source:
+
+- `RetroPieAchievements.h` reads **only** `cheevos_enable` and
+  `cheevos_username` from the real global RetroArch configuration. No
+  credentials, passwords, tokens, or launcher settings are copied to Tarave.
+- On the standalone RetroPie build, theme variables
+  `global.cheevos`, `global.cheevos.username`, `cheevos.username` and
+  `system.cheevos` now reflect the RetroArch setting. This also controls
+  existing `ifCheevos` theme conditions and `ShowCheevosIcon` availability.
+- Because RetroPie does not provide Batocera core-feature metadata,
+  `isCheevosSupported` checks for an installed `lr-*` Runcommand core.
+  This is an **approximate system-level capability**, not proof that every
+  game/core combination earns achievements.
+- Existing game achievement badges still require a positive
+  `cheevosId` in the game metadata (from previous indexing). The optional
+  **Find all games with Netplay/Achievements** indexer exists, but its live
+  compatibility with current RetroAchievements services still needs testing.
+- Reads are cached for two seconds, avoiding per-frame disk activity.
+- No Netplay or RetroArch configuration writes are included in this stage.
+
+**Not yet included:** editing RetroArch options in Tarave, authentication,
+live earned-achievement totals, downloading individual achievement artwork,
+or one-click lobby joining. Keep RetroPie scripts available for those tasks.
+
 ## Executive decision
 
 **RetroPie/RetroArch is the runtime authority. Tarave supplies the user
