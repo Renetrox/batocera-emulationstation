@@ -23,6 +23,12 @@ jobs:
           -o /tmp/tarave-runcommand-test
       - name: Run backend tests
         run: /tmp/tarave-runcommand-test
+      - name: Test RetroPie achievements theme status reader
+        run: |
+          g++ -std=c++11 -Wall -Wextra -Werror -pedantic \
+            tests/test_tarave_retropie_achievements.cpp \
+            -o /tmp/tarave-retropie-achievements-test
+          /tmp/tarave-retropie-achievements-test
       - name: Check Tarave X-TRAS sources and private catalog
         run: python3 -m unittest discover -s tests -p test_tarave_xtras.py -v
       - name: Test manual media picker paths and filters
