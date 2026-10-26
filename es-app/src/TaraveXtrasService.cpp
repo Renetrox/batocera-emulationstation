@@ -209,7 +209,7 @@ std::vector<PacmanPackage> modules() {
         PacmanPackage p;
         p.name = "module:bezelproject";
         p.description = description.empty() ? "The Bezel Project" : description;
-        p.repository = "HERRAMIENTAS";
+        p.repository = "TOOLS";
         p.group = "RetroPie-Extra";
         p.packager = "RetroPie-Extra";
         p.available_version = "bezelproject";
@@ -379,7 +379,7 @@ std::vector<PacmanPackage> list() {
         PacmanPackage p;
         p.name = "game:" + g.id;
         p.description = g.title.empty() ? g.id : g.title;
-        p.repository = "JUEGOS LIBRES";
+        p.repository = "FREE GAMES";
         p.group = g.system;
         p.packager = g.author;
         p.available_version = g.license;
