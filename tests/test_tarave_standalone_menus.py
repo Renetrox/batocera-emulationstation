@@ -53,7 +53,7 @@ class StandaloneMenuTests(unittest.TestCase):
             catalog = read(f"locale/lang/{language}/LC_MESSAGES/emulationstation2.po")
             for key in ("CHOOSE", "SELECT", "BACK", "CLOSE", "SEARCH"):
                 self.assertIn(f'msgid "{key}"', catalog)
-                self.assertIn(f'msgid "{key}"\\nmsgstr "', catalog)
+                self.assertIn(f'msgid "{key}"\nmsgstr "', catalog)
 
     def test_retropie_cheevos_theme_binding(self):
         systems = read("es-app/src/SystemData.cpp")
