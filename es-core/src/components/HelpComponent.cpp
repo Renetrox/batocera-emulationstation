@@ -8,6 +8,7 @@
 #include "Log.h"
 #include "Settings.h"
 #include "InputConfig.h"
+#include "LocaleES.h"
 
 // space between [icon] and [text] (px)
 #define ICON_TEXT_SPACING Renderer::getScreenWidth() * 0.0042f
@@ -104,7 +105,10 @@ void HelpComponent::updateGrid()
 		icon->setColorShift(mStyle.iconColor);
 		icon->setResize(0, height);		
 
-		std::string text = Utils::String::toUpper(it->second);
+		// Some components provide raw English labels, while others call _() first.
+		// Translate at the rendering boundary too, so the on-screen help is
+		// consistent after switching language without changing the button IDs.
+		std::string text = Utils::String::toUpper(_(it->second));
 		
 		if (is43screen)
 		{
