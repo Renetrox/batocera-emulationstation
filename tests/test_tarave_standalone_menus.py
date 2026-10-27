@@ -36,6 +36,25 @@ class StandaloneMenuTests(unittest.TestCase):
         self.assertIn('execv("/proc/self/exe", argv);', main)
         self.assertIn("TARAVE_PORTABLE_LOCALE", main)
 
+    def test_help_bar_localizes_labels_not_controller_keys(self):
+        # Help labels can come pretranslated from screens or as raw English
+        # from components. The rendering boundary must support both cases.
+        helpbar = read("es-core/src/components/HelpComponent.cpp")
+        self.assertIn('#include "LocaleES.h"', helpbar)
+        self.assertIn('Utils::String::toUpper(_(it->second))', helpbar)
+        self.assertIn('InputConfig::buttonLabel(it->first)', helpbar)
+
+        for name in ("ComponentList", "ComponentTab"):
+            source = read(f"es-core/src/components/{name}.cpp")
+            self.assertIn('HelpPrompt("up/down", _("CHOOSE"))', source)
+            self.assertNotIn('HelpPrompt(_("up/down"), _("CHOOSE"))', source)
+
+        for language in ("es", "es_MX"):
+            catalog = read(f"locale/lang/{language}/LC_MESSAGES/emulationstation2.po")
+            for key in ("CHOOSE", "SELECT", "BACK", "CLOSE", "SEARCH"):
+                self.assertIn(f'msgid "{key}"', catalog)
+                self.assertIn(f'msgid "{key}"\\nmsgstr "', catalog)
+
     def test_retropie_cheevos_theme_binding(self):
         systems = read("es-app/src/SystemData.cpp")
         original = read("es-app/src/FileData.cpp")
