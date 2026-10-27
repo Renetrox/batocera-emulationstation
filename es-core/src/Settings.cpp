@@ -9,6 +9,9 @@
 #include <vector>
 #include "utils/StringUtil.h"
 #include "Paths.h"
+#if defined(__linux__) && defined(__aarch64__)
+#include <sys/sysinfo.h>
+#endif
 
 Settings* Settings::sInstance = NULL;
 static std::string mEmptyString = "";
@@ -217,8 +220,18 @@ void Settings::setDefaults()
 	// Rpi 0, 1
 	mIntMap["MaxVRAM"] = 128;
 #else
-	// Other boards
+	// Other boards. AArch64 SBCs such as Orange Pi 4A were falling through
+	// to just 100 MB, causing frequent texture eviction with large themes.
+	// Use the same 256 MB budget as desktop on systems with >= 2 GiB RAM.
+	// Keep 100 MB on memory-constrained or unrecognised machines.
 	mIntMap["MaxVRAM"] = 100;
+#if defined(__linux__) && defined(__aarch64__)
+	struct sysinfo memoryInfo = {};
+	if (::sysinfo(&memoryInfo) == 0 &&
+		static_cast<unsigned long long>(memoryInfo.totalram) * memoryInfo.mem_unit >=
+		2ULL * 1024ULL * 1024ULL * 1024ULL)
+		mIntMap["MaxVRAM"] = 256;
+#endif
 #endif
 
 	mStringMap["TransitionStyle"] = "auto";
