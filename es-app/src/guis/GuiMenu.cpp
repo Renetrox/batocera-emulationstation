@@ -18,6 +18,7 @@
 #include "guis/GuiImageViewer.h"
 #include "guis/GuiNetPlaySettings.h"
 #include "guis/GuiRetroAchievementsSettings.h"
+#include "guis/GuiRetroPieAchievementsSettings.h"
 #include "guis/GuiSystemInformation.h"
 #include "guis/GuiControllersSettings.h"
 #include "views/UIModeController.h"
@@ -1756,7 +1757,7 @@ void GuiMenu::openSystemSettings()
 	if (!ApiSystem::getInstance()->isScriptingSupported(ApiSystem::GAMESETTINGS))
 	{
 		// Retroachievements
-		if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS))
+		if (RetroPieRuncommand::enabled() || ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS))
 			s->addEntry(_("RETROACHIEVEMENT SETTINGS"), true, [this] { openRetroachievementsSettings(); });
 
 		if (SystemData::isNetplayActivated() && ApiSystem::getInstance()->isScriptingSupported(ApiSystem::NETPLAY))
@@ -2154,6 +2155,10 @@ void GuiMenu::openLatencyReductionConfiguration(Window* mWindow, std::string con
 
 void GuiMenu::openRetroachievementsSettings()
 {
+	if (RetroPieRuncommand::enabled()) {
+		mWindow->pushGui(new GuiRetroPieAchievementsSettings(mWindow));
+		return;
+	}
 	mWindow->pushGui(new GuiRetroAchievementsSettings(mWindow));
 }
 
@@ -2696,11 +2701,11 @@ void GuiMenu::openGamesSettings()
 	}
 	
 
-	if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS) || (SystemData::isNetplayActivated() && ApiSystem::getInstance()->isScriptingSupported(ApiSystem::NETPLAY)))
+	if (RetroPieRuncommand::enabled() || ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS) || (SystemData::isNetplayActivated() && ApiSystem::getInstance()->isScriptingSupported(ApiSystem::NETPLAY)))
 		s->addGroup(_("ACCOUNTS"));
 
 	// Retroachievements
-	if (ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS))
+	if (RetroPieRuncommand::enabled() || ApiSystem::getInstance()->isScriptingSupported(ApiSystem::RETROACHIVEMENTS))
 		s->addEntry(_("RETROACHIEVEMENT SETTINGS"), true, [this] { openRetroachievementsSettings(); });
 
 	// Netplay

@@ -3745,3 +3745,35 @@ msgstr ""
 #: es-app/src/guis/GuiBluetoothPair.cpp
 msgid "INVALID BLUETOOTH ADDRESS"
 msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH CONFIGURATION COULD NOT BE READ"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH SETTINGS COULD NOT BE SAVED"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH CONFIGURATION CHANGED. REOPEN THIS MENU."
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH GLOBAL SETTINGS"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "NOT CONFIGURED"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "MANAGE YOUR ACCOUNT IN RETROARCH"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "SYSTEM, CORE AND GAME OVERRIDES MAY TAKE PRECEDENCE"
+msgstr ""
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH ACHIEVEMENT SETTINGS SAVED. RELOAD THE GAME LIST TO UPDATE THEME ICONS."
+msgstr ""

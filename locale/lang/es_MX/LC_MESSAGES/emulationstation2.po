@@ -3839,3 +3839,35 @@ msgstr "No se encontraron las herramientas de Bluetooth."
 #: es-app/src/guis/GuiBluetoothPair.cpp
 msgid "INVALID BLUETOOTH ADDRESS"
 msgstr "Dirección Bluetooth no válida."
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH CONFIGURATION COULD NOT BE READ"
+msgstr "No se pudo leer la configuración de RetroArch."
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH SETTINGS COULD NOT BE SAVED"
+msgstr "No se pudieron guardar los ajustes de RetroArch. Comprueba los permisos."
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH CONFIGURATION CHANGED. REOPEN THIS MENU."
+msgstr "La configuración de RetroArch cambió. Vuelve a abrir este menú."
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH GLOBAL SETTINGS"
+msgstr "AJUSTES GLOBALES DE RETROARCH"
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "NOT CONFIGURED"
+msgstr "Sin configurar"
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "MANAGE YOUR ACCOUNT IN RETROARCH"
+msgstr "Configura tu cuenta desde RetroArch"
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "SYSTEM, CORE AND GAME OVERRIDES MAY TAKE PRECEDENCE"
+msgstr "Los ajustes de sistema, núcleo o juego pueden tener prioridad"
+
+#: es-app/src/guis/GuiRetroPieAchievementsSettings.h
+msgid "RETROARCH ACHIEVEMENT SETTINGS SAVED. RELOAD THE GAME LIST TO UPDATE THEME ICONS."
+msgstr "Ajustes de logros guardados. Recarga la lista de juegos para actualizar los iconos del tema."

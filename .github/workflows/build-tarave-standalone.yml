@@ -43,6 +43,10 @@ jobs:
           python3 tests/test_retropie_input_bridge.py
           python3 tests/test_retropie_player_order.py
           python3 tests/test_tarave_input_dispatch.py
+          g++ -std=c++11 -pthread tests/test_tarave_retropie_achievements.cpp -o /tmp/tarave-ra-theme-test
+          /tmp/tarave-ra-theme-test
+          g++ -std=c++11 -pthread tests/test_tarave_achievement_config.cpp -o /tmp/tarave-ra-config-test
+          /tmp/tarave-ra-config-test
       - name: Configure portable RetroPie build
         run: |
           cmake -S . -B build \
