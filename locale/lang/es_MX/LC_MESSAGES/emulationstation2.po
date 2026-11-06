@@ -3811,3 +3811,15 @@ msgstr ""
 
 #~ msgid "HAS MEDIAS"
 #~ msgstr "TIENE MEDIOS"
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "UNAVAILABLE FOR THIS SYSTEM"
+msgstr "No disponible para este sistema"
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "COMPATIBILITY UNVERIFIED"
+msgstr "Compatibilidad sin verificar"
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "PACKAGE FLAGS"
+msgstr "Restricciones del paquete"

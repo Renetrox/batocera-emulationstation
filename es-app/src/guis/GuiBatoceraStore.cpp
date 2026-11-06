@@ -107,6 +107,11 @@ void GuiBatoceraStore::update(int deltaTime)
 
 		if (silent)
 		{
+			if (refreshPackages && RetroPieRuncommand::enabled())
+			{
+				loadPackagesAsync(false, true);
+				return;
+			}
 			if (refreshPackages)
 				mPackages = queryPackages();
 
@@ -318,6 +323,16 @@ void GuiBatoceraStore::processPackage(PacmanPackage package)
 	if (package.name.empty())
 		return;
 
+	// Keep unavailable entries inspectable without queueing a failed install.
+	if (RetroPieRuncommand::enabled() && package.retropieAvailability == 0)
+	{
+		mWindow->pushGui(new GuiMsgBox(mWindow,
+			_("UNAVAILABLE FOR THIS SYSTEM") + "\n" + package.description +
+			"\n" + _("PACKAGE FLAGS") + ": " + package.retropieFlags,
+			_("OK"), nullptr));
+		return;
+	}
+
 	GuiSettings* msgBox = new GuiSettings(mWindow, package.name);
 	msgBox->setSubTitle(package.description);
 	msgBox->setTag("popup");
@@ -442,7 +457,8 @@ GuiBatoceraStoreEntry::GuiBatoceraStoreEntry(Window* window, PacmanPackage& entr
 	mImage->setHorizontalAlignment(Alignment::ALIGN_CENTER);
 	mImage->setVerticalAlignment(Alignment::ALIGN_TOP);
 	mImage->setFont(theme->Text.font);
-	mImage->setText(isInstalled ? _U("\uF058") : _U("\uF019"));	
+	mImage->setText(entry.retropieAvailability == 0 ? _U("\uF071") :
+		(isInstalled ? _U("\uF058") : _U("\uF019")));
 	mImage->setSize(theme->Text.font->getLetterHeight() * 1.5f, 0);
 
 	std::string label = entry.description;
@@ -471,6 +487,11 @@ GuiBatoceraStoreEntry::GuiBatoceraStoreEntry(Window* window, PacmanPackage& entr
 		details = details + _U("  \uf0A0  ") + Utils::FileSystem::kiloBytesToString(entry.installed_size);
 	else if (entry.download_size > 0)
 		details = details + _U("  \uf0A0  ") + Utils::FileSystem::kiloBytesToString(entry.download_size);
+
+	if (RetroPieRuncommand::enabled() && Utils::String::startsWith(entry.name, "module:"))
+		if (entry.retropieAvailability != 1)
+			details += " · " + (entry.retropieAvailability == 0 ?
+				_("UNAVAILABLE FOR THIS SYSTEM") : _("COMPATIBILITY UNVERIFIED"));
 
 	if (mIsPending)
 	{
@@ -537,12 +558,14 @@ GuiBatoceraStoreEntry::GuiBatoceraStoreEntry(Window* window, PacmanPackage& entr
 	}
 
 	setSize(Vector2f(0, h));
+	setColor(theme->Text.color);
 }
 
 void GuiBatoceraStoreEntry::setColor(unsigned int color)
 {
-	mImage->setColor(color);
-	mText->setColor(color);
+	const unsigned int titleColor = mEntry.retropieAvailability == 0 ? 0xF29A86FF : color;
+	mImage->setColor(titleColor);
+	mText->setColor(titleColor);
 	mSubstring->setColor(color);
 }
 

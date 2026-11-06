@@ -3858,3 +3858,15 @@ msgstr "NO SE PUDO REINICIAR EL SISTEMA. COMPRUEBA LOS PERMISOS."
 
 msgid "UNABLE TO SHUT DOWN SYSTEM. CHECK POWER PERMISSIONS."
 msgstr "NO SE PUDO APAGAR EL SISTEMA. COMPRUEBA LOS PERMISOS."
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "UNAVAILABLE FOR THIS SYSTEM"
+msgstr "No disponible para este sistema"
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "COMPATIBILITY UNVERIFIED"
+msgstr "Compatibilidad sin verificar"
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "PACKAGE FLAGS"
+msgstr "Restricciones del paquete"

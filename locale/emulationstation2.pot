@@ -3717,3 +3717,15 @@ msgid ""
 "CALIBRATING GUN\n"
 "Fire on targets to calibrate"
 msgstr ""
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "UNAVAILABLE FOR THIS SYSTEM"
+msgstr ""
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "COMPATIBILITY UNVERIFIED"
+msgstr ""
+
+#: es-app/src/guis/GuiBatoceraStore.cpp
+msgid "PACKAGE FLAGS"
+msgstr ""

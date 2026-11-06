@@ -150,10 +150,68 @@ bool installedModule(const std::string& id) {
     return false;
 }
 
+// Called by the native store's existing GuiLoading worker, never on each row.
+// setup_env would install packages/import keys; only discover platform and use
+// the installed registration rules. A failed query remains explicitly unknown.
+std::map<std::string, int> moduleAvailability(const std::string& root) {
+    std::map<std::string, int> result;
+#if !defined(WIN32)
+    const std::string query = R"ESX(
+scriptdir=$1
+export HOME=$2
+rootdir=/opt/retropie
+__user=$(id -un)
+__group=$(id -gn)
+home=$HOME
+configdir=$rootdir/configs
+source "$scriptdir/scriptmodules/system.sh" || exit 1
+source "$scriptdir/scriptmodules/helpers.sh" || exit 1
+source "$scriptdir/scriptmodules/inifuncs.sh" || exit 1
+source "$scriptdir/scriptmodules/packages.sh" || exit 1
+# OS discovery asks for lsb-release. A query must never install it.
+getDepends() { command -v lsb_release >/dev/null || exit 1; }
+# Legacy Pi discovery removes obsolete pkgconfig files; suppress that cleanup.
+rm() { return 0; }
+test_chroot >/dev/null 2>&1
+get_platform >/dev/null 2>&1
+get_os_version >/dev/null 2>&1
+conf_memory_vars
+conf_build_vars >/dev/null 2>&1
+rp_registerAllModules >/dev/null 2>&1
+for id in "${__mod_id[@]}"; do
+    [[ "${__mod_info[$id/type]}" == ports || "$id" == bezelproject ]] || continue
+    printf 'ESX_PORT\t%s\t%s\n' "$id" "${__mod_info[$id/enabled]}"
+done
+printf 'ESX_DONE\n'
+)ESX";
+    const std::string cmd = "timeout --kill-after=1s 20s bash -c " + quote(query) +
+        " tarave " + quote(root) + " " + quote(loginHome()) + " 2>/dev/null";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) return result;
+    bool complete = false;
+    char buffer[4096];
+    while (std::fgets(buffer, sizeof(buffer), pipe)) {
+        const std::string line = trim(buffer);
+        if (line == "ESX_DONE") complete = true;
+        if (line.compare(0, 9, "ESX_PORT\t") != 0) continue;
+        const auto tab = line.find('\t', 9);
+        if (tab == std::string::npos) continue;
+        const auto state = line.substr(tab + 1);
+        if (state == "0" || state == "1")
+            result[line.substr(9, tab - 9)] = state == "1" ? 1 : 0;
+    }
+    const int status = pclose(pipe);
+    if (!complete || status == -1 || !WIFEXITED(status) || WEXITSTATUS(status) != 0)
+        result.clear();
+#endif
+    return result;
+}
+
 std::vector<PacmanPackage> modules() {
     std::vector<PacmanPackage> result;
     const auto root = setupRoot();
     if (root.empty()) return result;
+    const auto availability = moduleAvailability(root);
     const auto ext = root + "/ext";
     std::vector<std::pair<std::string, std::string>> sources;
     sources.emplace_back(root + "/scriptmodules/ports", "RetroPie");
@@ -163,14 +221,17 @@ std::vector<PacmanPackage> modules() {
                 sources.emplace_back(vendor + "/scriptmodules/ports",
                                      Utils::FileSystem::getFileName(vendor));
 
+    std::sort(sources.begin() + 1, sources.end());
     std::set<std::string> known;
     for (const auto& source : sources) {
         if (!Utils::FileSystem::isDirectory(source.first)) continue;
-        for (const auto& path : Utils::FileSystem::getDirContent(source.first)) {
+        auto files = Utils::FileSystem::getDirContent(source.first);
+        files.sort();
+        for (const auto& path : files) {
             if (Utils::FileSystem::getExtension(path) != ".sh" ||
                 !Utils::FileSystem::isRegularFile(path)) continue;
             std::ifstream input(path);
-            std::string id, description, section, line;
+            std::string id, description, section, flags, line;
             while (std::getline(input, line)) {
                 auto v = value(line, "rp_module_id");
                 if (!v.empty()) id = v;
@@ -178,9 +239,14 @@ std::vector<PacmanPackage> modules() {
                 if (!v.empty()) description = v;
                 v = value(line, "rp_module_section");
                 if (!v.empty()) section = v;
+                v = value(line, "rp_module_flags");
+                if (!v.empty()) flags = v;
             }
             if (!token(id) || !known.insert(id).second) continue;
             PacmanPackage p;
+            p.retropieFlags = flags;
+            const auto state = availability.find(id);
+            if (state != availability.end()) p.retropieAvailability = state->second;
             p.name = "module:" + id;
             p.description = description.empty() ? id : description;
             p.repository = "PORTS";
@@ -198,15 +264,20 @@ std::vector<PacmanPackage> modules() {
     const auto addBezel = [&](const std::string& path) {
         if (!Utils::FileSystem::isRegularFile(path)) return;
         std::ifstream input(path);
-        std::string line, id, description;
+        std::string line, id, description, flags;
         while (std::getline(input, line)) {
             auto v = value(line, "rp_module_id");
             if (!v.empty()) id = v;
             v = value(line, "rp_module_desc");
             if (!v.empty()) description = v;
+            v = value(line, "rp_module_flags");
+            if (!v.empty()) flags = v;
         }
         if (id != "bezelproject" || !known.insert(id).second) return;
         PacmanPackage p;
+        p.retropieFlags = flags;
+        const auto state = availability.find(id);
+        if (state != availability.end()) p.retropieAvailability = state->second;
         p.name = "module:bezelproject";
         p.description = description.empty() ? "The Bezel Project" : description;
         p.repository = "TOOLS";
@@ -360,7 +431,11 @@ std::pair<std::string, int> execute(const std::string& id, bool uninstall,
 
     bool found = false;
     for (const auto& p : modules())
-        if (p.name == id) { found = true; break; }
+        if (p.name == id) {
+            if (!uninstall && p.retropieAvailability == 0)
+                return {"Unavailable for this system. Package flags: " + p.retropieFlags, 1};
+            found = true; break;
+        }
     if (!found) return {"Module not registered in RetroPie-Setup.", 1};
 
     const auto log = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";

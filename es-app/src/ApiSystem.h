@@ -75,6 +75,10 @@ struct PacmanPackage
 
 	std::string arch;
 
+	// RetroPie module availability is independent of installed state.
+	int retropieAvailability = -1; // -1 unverified, 0 disabled, 1 enabled
+	std::string retropieFlags;
+
 	bool isInstalled() { return status == "installed"; }
 };
 
