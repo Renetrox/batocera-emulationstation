@@ -116,6 +116,26 @@ inline bool copyAttributes(const std::string& path, int destination, const struc
              ::fsetxattr(destination, name.c_str(), value.data(), value.size(), 0) == 0;
         offset += name.size() + 1;
     }
+    // mkstemp can inherit a directory's default ACL. Remove attributes that
+    // were inherited by the new file but were absent from the original.
+    const auto destinationCount = ok ? ::flistxattr(destination, nullptr, 0) : -1;
+    if (ok && destinationCount < 0) ok = false;
+    std::vector<char> inherited(destinationCount > 0 ? static_cast<size_t>(destinationCount) : 0);
+    if (ok && destinationCount > 0)
+        ok = ::flistxattr(destination, inherited.data(), inherited.size()) == destinationCount;
+    offset = 0;
+    while (ok && offset < inherited.size()) {
+        const std::string name(inherited.data() + offset);
+        bool present = false;
+        size_t sourceOffset = 0;
+        while (sourceOffset < names.size()) {
+            const std::string sourceName(names.data() + sourceOffset);
+            if (sourceName == name) { present = true; break; }
+            sourceOffset += sourceName.size() + 1;
+        }
+        if (!present) ok = ::fremovexattr(destination, name.c_str()) == 0;
+        offset += name.size() + 1;
+    }
     ::close(source);
     return ok;
 #else

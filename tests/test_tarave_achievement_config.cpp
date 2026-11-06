@@ -21,6 +21,21 @@ int main() {
 #ifdef __linux__
     const bool hasXattrs = ::setxattr(path.c_str(), "user.tarave-test", "keep", 4, 0) == 0;
 #endif
+#ifdef __linux__
+    if (hasXattrs) {
+        const std::string staging = path + ".attrs";
+        const int fd = ::open(staging.c_str(), O_CREAT | O_RDWR | O_EXCL, 0600);
+        assert(fd >= 0);
+        assert(::fsetxattr(fd, "user.inherited", "remove", 6, 0) == 0);
+        struct stat metadata;
+        assert(::stat(path.c_str(), &metadata) == 0);
+        assert(copyAttributes(path, fd, metadata));
+        assert(::fgetxattr(fd, "user.inherited", nullptr, 0) < 0 && errno == ENODATA);
+        char data[4];
+        assert(::fgetxattr(fd, "user.tarave-test", data, sizeof(data)) == 4);
+        ::close(fd); ::unlink(staging.c_str());
+    }
+#endif
     auto initial = read(path);
     assert(initial.valid && initial.username == "TestUser");
     assert(initial.option("cheevos_enable") == "true"); // Last key wins.
