@@ -2,6 +2,7 @@
 #include "guis/GuiMsgBox.h"
 #include "GuiLoading.h"
 #include "ApiSystem.h"
+#include "RetroPieRuncommand.h"
 
 GuiBluetoothDeviceOptions::GuiBluetoothDeviceOptions(Window* window, const std::string& id, const std::string& name, bool isConnected, std::function<void()> onComplete)
     : GuiComponent(window), mMenu(window, _("DEVICE OPTIONS").c_str()), mId(id), mName(name), mIsConnected(isConnected), mWaitingLoad(false), mOnComplete(onComplete)
@@ -65,6 +66,10 @@ void GuiBluetoothDeviceOptions::onForgetDevice()
                 [this, window](bool ret)
                 {
                     mWaitingLoad = false;
+                    if (!ret && RetroPieRuncommand::enabled()) {
+                        mWindow->pushGui(new GuiMsgBox(mWindow, _("BLUETOOTH OPERATION FAILED")));
+                        return;
+                    }
                     if (mOnComplete) mOnComplete();
                     delete this;
                 }));
@@ -90,6 +95,10 @@ void GuiBluetoothDeviceOptions::onConnectDevice()
                 [this, window](bool ret)
                 {
                     mWaitingLoad = false;
+                    if (!ret && RetroPieRuncommand::enabled()) {
+                        mWindow->pushGui(new GuiMsgBox(mWindow, _("BLUETOOTH OPERATION FAILED")));
+                        return;
+                    }
                     if (mOnComplete) mOnComplete();
                     delete this;
                 }));
@@ -115,6 +124,10 @@ void GuiBluetoothDeviceOptions::onDisconnectDevice()
                 [this, window](bool ret)
                 {
                     mWaitingLoad = false;
+                    if (!ret && RetroPieRuncommand::enabled()) {
+                        mWindow->pushGui(new GuiMsgBox(mWindow, _("BLUETOOTH OPERATION FAILED")));
+                        return;
+                    }
                     if (mOnComplete) mOnComplete();
                     delete this;
                 }));

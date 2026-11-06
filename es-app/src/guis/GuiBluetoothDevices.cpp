@@ -11,6 +11,7 @@
 #include "guis/GuiTextEditPopupKeyboard.h"
 #include "GuiLoading.h"
 #include "GuiBluetoothDeviceOptions.h"
+#include "RetroPieRuncommand.h"
 
 GuiBluetoothDevices::GuiBluetoothDevices(Window* window)
 	: GuiComponent(window), mMenu(window, _("BLUETOOTH DEVICE LIST").c_str())
@@ -21,7 +22,7 @@ GuiBluetoothDevices::GuiBluetoothDevices(Window* window)
 
 	addChild(&mMenu);
 
-	if (load())		
+	if (load() && !RetroPieRuncommand::enabled())
 		mMenu.addButton(_("REMOVE ALL"), "manual input", [&] { onRemoveAll(); });
 
 	mMenu.addButton(_("BACK"), "back", [&] { delete this; });
@@ -34,7 +35,26 @@ GuiBluetoothDevices::GuiBluetoothDevices(Window* window)
 
 bool GuiBluetoothDevices::load()
 {
-	std::vector<std::string> ssids = ApiSystem::getInstance()->getPairedBluetoothDeviceList();
+	if (RetroPieRuncommand::enabled()) { mNeedsLoad = true; return false; }
+	return populate(ApiSystem::getInstance()->getPairedBluetoothDeviceList());
+}
+
+void GuiBluetoothDevices::update(int deltaTime)
+{
+	GuiComponent::update(deltaTime);
+	if (!mNeedsLoad) return;
+	mNeedsLoad = false;
+	mWaitingLoad = true;
+	mWindow->pushGui(new GuiLoading<std::vector<std::string>>(mWindow, _("PLEASE WAIT"),
+		[](auto) { return ApiSystem::getInstance()->getPairedBluetoothDeviceList(); },
+		[this](std::vector<std::string> devices) {
+			mWaitingLoad = false;
+			populate(devices);
+		}));
+}
+
+bool GuiBluetoothDevices::populate(const std::vector<std::string>& ssids)
+{
 
 	mMenu.clear();
 
@@ -47,6 +67,11 @@ bool GuiBluetoothDevices::load()
 			if (ssid.empty())
 				continue;
 			
+			if (Utils::String::startsWith(ssid, "<error ")) {
+				const auto key = Utils::String::extractString(ssid, "key=\"", "\"", false);
+				mMenu.addEntry(_(key.c_str()), false);
+				continue;
+			}
 			if (Utils::String::startsWith(ssid, "<device "))
 			{
 				auto id = Utils::String::extractString(ssid, "id=\"", "\"", false);

@@ -10,6 +10,8 @@
 #include "guis/GuiTextEditPopup.h"
 #include "guis/GuiTextEditPopupKeyboard.h"
 #include "GuiLoading.h"
+#include "RetroPieBluetooth.h"
+#include "RetroPieRuncommand.h"
 
 #define WINDOW_WIDTH (float)Math::min(Renderer::getScreenHeight() * 1.125f, Renderer::getScreenWidth() * 0.90f)
 
@@ -37,13 +39,20 @@ GuiBluetoothPair::GuiBluetoothPair(Window* window)
 	mBusyAnim.setSize(getSize());
 
 	Instance = this;
+	mAlive = std::make_shared<std::atomic<bool>>(true);
+	if (RetroPieRuncommand::enabled()) RetroPieBluetooth::prepareScan();
 	mThread = new std::thread(&GuiBluetoothPair::loadDevicesAsync, this);
 }
 
 GuiBluetoothPair::~GuiBluetoothPair()
 {
+	*mAlive = false;
 	Instance = nullptr;
 	ApiSystem::getInstance()->stopBluetoothLiveDevices();
+	if (RetroPieRuncommand::enabled() && mThread) {
+		if (mThread->joinable()) mThread->join();
+		delete mThread;
+	}
 }
 
 void GuiBluetoothPair::updateSize()
@@ -71,18 +80,27 @@ void GuiBluetoothPair::loadDevicesAsync()
 {
 	Window* window = mWindow;
 
-	ApiSystem::getInstance()->startBluetoothLiveDevices([window](const std::string deviceInfo)
+	const auto alive = mAlive;
+	ApiSystem::getInstance()->startBluetoothLiveDevices([window, alive](const std::string deviceInfo)
 	{
-		if (Instance != nullptr && Utils::String::startsWith(deviceInfo, "<device "))
+		if (!*alive) return;
+		if (Utils::String::startsWith(deviceInfo, "<error ")) {
+			const auto key = Utils::String::extractString(deviceInfo, "key=\"", "\"", false);
+			window->postToUiThread([window, alive, key]() {
+				if (*alive) window->pushGui(new GuiMsgBox(window, _(key.c_str())));
+			});
+			return;
+		}
+		if (Utils::String::startsWith(deviceInfo, "<device "))
 		{
 			auto id = Utils::String::extractString(deviceInfo, "id=\"", "\"", false);
 			auto name = Utils::String::extractString(deviceInfo, "name=\"", "\"", false);
 			auto status = Utils::String::extractString(deviceInfo, "status=\"", "\"", false);
 			auto type = Utils::String::extractString(deviceInfo, "type=\"", "\"", false);
 
-			window->postToUiThread([id, name, status, type]
+			window->postToUiThread([id, name, status, type, alive]
 			{
-				if (Instance == nullptr || Instance->mIsPairing)
+				if (!*alive || Instance == nullptr || Instance->mIsPairing)
 					return;
 
 				if (status == "removed")
@@ -138,5 +156,7 @@ void GuiBluetoothPair::onPairDevice(const std::string& macAddress)
 
 		if (ret)
 			delete this;
+		else if (RetroPieRuncommand::enabled())
+			mWindow->pushGui(new GuiMsgBox(mWindow, _("BLUETOOTH OPERATION FAILED")));
 	}));
 }

@@ -39,6 +39,10 @@ jobs:
         run: |
           python3 tests/test_tarave_xtras.py
           python3 tests/test_tarave_xtras_availability.py
+          python3 tests/test_tarave_bluetooth.py
+          python3 tests/test_retropie_input_bridge.py
+          python3 tests/test_retropie_player_order.py
+          python3 tests/test_tarave_input_dispatch.py
       - name: Configure portable RetroPie build
         run: |
           cmake -S . -B build \

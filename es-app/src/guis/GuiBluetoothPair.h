@@ -5,6 +5,8 @@
 #include "components/BusyComponent.h"
 
 #include <thread>
+#include <memory>
+#include <atomic>
 
 class GuiBluetoothPair : public MenuComponent
 {
@@ -21,6 +23,7 @@ public:
 
 private:
 	std::thread* mThread;
+	std::shared_ptr<std::atomic<bool>> mAlive;
 	void		 loadDevicesAsync();
 
 	void		 onPairDevice(const std::string& macAddress);

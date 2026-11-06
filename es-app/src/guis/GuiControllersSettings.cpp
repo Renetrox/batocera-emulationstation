@@ -12,6 +12,7 @@
 #include "guis/GuiMsgBox.h"
 #include "GuiLoading.h"
 #include "InputManager.h"
+#include "RetroPieRuncommand.h"
 #include "SystemConf.h"
 
 #define gettext_controllers_settings				_("CONTROLLER SETTINGS")
@@ -144,10 +145,17 @@ GuiControllersSettings::GuiControllersSettings(Window* wnd, int autoSel) : GuiSe
 		{
 #endif
 
+		if (RetroPieRuncommand::enabled())
+			addEntry(_("ENABLE BLUETOOTH"), false, [window] {
+				window->pushGui(new GuiLoading<bool>(window, _("PLEASE WAIT"),
+					[](auto) { return ApiSystem::getInstance()->enableBluetooth(); },
+					[window](bool ok) { if (!ok) window->pushGui(new GuiMsgBox(window, _("BLUETOOTH OPERATION FAILED"))); }));
+			});
+
 		// PAIR A BLUETOOTH CONTROLLER
+		if (!RetroPieRuncommand::enabled())
 		addEntry(_("PAIR BLUETOOTH PADS AUTOMATICALLY"), false, [window] { ThreadedBluetooth::start(window); });
 
-#if defined(BATOCERA) || defined(WIN32)
 		// PAIR A BLUETOOTH CONTROLLER OR BT AUDIO DEVICE
 		addEntry(_("PAIR A BLUETOOTH DEVICE MANUALLY"), false, [window]
 		{
@@ -156,7 +164,6 @@ GuiControllersSettings::GuiControllersSettings(Window* wnd, int autoSel) : GuiSe
 			else
 				window->pushGui(new GuiBluetoothPair(window));
 		});
-#endif
 		// FORGET BLUETOOTH CONTROLLERS OR BT AUDIO DEVICES
 		addEntry(_("BLUETOOTH DEVICE LIST"), false, [window] { window->pushGui(new GuiBluetoothDevices(window)); });
 

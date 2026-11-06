@@ -19,6 +19,7 @@
 #include "LocaleES.h"
 #include "RetroPieRuncommand.h"
 #include "TaraveXtrasService.h"
+#include "RetroPieBluetooth.h"
 
 #include <stdlib.h>
 #include <sstream>
@@ -508,51 +509,61 @@ std::string ApiSystem::getIpAddress()
 
 bool ApiSystem::enableBluetooth()
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("enable");
 	return executeScript("batocera-bluetooth enable 2>&1 >/dev/null");
 }
 
 bool ApiSystem::disableBluetooth()
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("disable");
 	return executeScript("batocera-bluetooth disable");
 }
 
 void ApiSystem::startBluetoothLiveDevices(const std::function<void(const std::string)>& func)
 {
+	if (RetroPieRuncommand::enabled()) { RetroPieBluetooth::run("scan", "", func); return; }
 	executeScript("batocera-bluetooth live_devices", func);
 }
 
 void ApiSystem::stopBluetoothLiveDevices()
 {
+	if (RetroPieRuncommand::enabled()) { RetroPieBluetooth::stopScan(); return; }
 	executeScript("batocera-bluetooth stop_live_devices");
 }
 
 bool ApiSystem::pairBluetoothDevice(const std::string& deviceName)
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("pair", deviceName);
 	return executeScript("batocera-bluetooth trust " + deviceName);
 }
 
 bool ApiSystem::connectBluetoothDevice(const std::string& deviceName)
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("connect", deviceName);
 	return executeScript("batocera-bluetooth connect " + deviceName);
 }
 
 bool ApiSystem::disconnectBluetoothDevice(const std::string& deviceName)
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("disconnect", deviceName);
 	return executeScript("batocera-bluetooth disconnect " + deviceName);
 }
 
 bool ApiSystem::removeBluetoothDevice(const std::string& deviceName)
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::run("remove", deviceName);
 	return executeScript("batocera-bluetooth remove " + deviceName);
 }
 
 bool ApiSystem::scanNewBluetooth(const std::function<void(const std::string)>& func)
 {
+	if (RetroPieRuncommand::enabled()) return false; // Standalone uses explicit device selection.
 	return executeScript("batocera-bluetooth trust input", func).second == 0;
 }
 
 std::vector<std::string> ApiSystem::getPairedBluetoothDeviceList()
 {
+	if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::paired();
 	return executeEnumerationScript("batocera-bluetooth list");
 }
 
@@ -697,6 +708,7 @@ bool ApiSystem::setPowerLedGameForce(std::string selected)
 
 bool ApiSystem::forgetBluetoothControllers() 
 {
+	if (RetroPieRuncommand::enabled()) return false; // Individual device removal only.
 	return executeScript("batocera-config forgetBT");
 }
 
@@ -1698,6 +1710,7 @@ bool ApiSystem::isScriptingSupported(ScriptId script)
 		executables.push_back("batocera-wifi");
 		break;
 	case ApiSystem::BLUETOOTH:
+		if (RetroPieRuncommand::enabled()) return RetroPieBluetooth::available();
 		executables.push_back("batocera-bluetooth");
 		break;
 	case ApiSystem::RESOLUTION:

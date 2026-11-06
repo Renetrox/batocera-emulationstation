@@ -3823,3 +3823,19 @@ msgstr "Compatibilidad sin verificar"
 #: es-app/src/guis/GuiBatoceraStore.cpp
 msgid "PACKAGE FLAGS"
 msgstr "Restricciones del paquete"
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "BLUETOOTH OPERATION FAILED"
+msgstr "No se pudo completar la operación Bluetooth. Comprueba el adaptador, los permisos y el modo de emparejamiento del mando."
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "ENABLE BLUETOOTH FIRST"
+msgstr "Activa Bluetooth antes de buscar dispositivos."
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "BLUETOOTH TOOLS NOT FOUND"
+msgstr "No se encontraron las herramientas de Bluetooth."
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "INVALID BLUETOOTH ADDRESS"
+msgstr "Dirección Bluetooth no válida."

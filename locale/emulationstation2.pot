@@ -3729,3 +3729,19 @@ msgstr ""
 #: es-app/src/guis/GuiBatoceraStore.cpp
 msgid "PACKAGE FLAGS"
 msgstr ""
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "BLUETOOTH OPERATION FAILED"
+msgstr ""
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "ENABLE BLUETOOTH FIRST"
+msgstr ""
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "BLUETOOTH TOOLS NOT FOUND"
+msgstr ""
+
+#: es-app/src/guis/GuiBluetoothPair.cpp
+msgid "INVALID BLUETOOTH ADDRESS"
+msgstr ""
