@@ -43,7 +43,7 @@ GuiBatoceraStore::GuiBatoceraStore(Window* window)
 	mHeaderGrid = std::make_shared<ComponentGrid>(mWindow, Vector2i(1, 5));
 
 	mTitle = std::make_shared<TextComponent>(mWindow, RetroPieRuncommand::enabled() ? "X-TRAS" : _("CONTENT DOWNLOADER"), theme->Title.font, theme->Title.color, ALIGN_CENTER);
-	mSubtitle = std::make_shared<TextComponent>(mWindow, RetroPieRuncommand::enabled() ? _("PORTS AND FREE GAMES") : _("SELECT CONTENT TO INSTALL/REMOVE"), theme->TextSmall.font, theme->TextSmall.color, ALIGN_CENTER);
+	mSubtitle = std::make_shared<TextComponent>(mWindow, RetroPieRuncommand::enabled() ? _("SELECT CONTENT TO INSTALL/REMOVE") : _("SELECT CONTENT TO INSTALL/REMOVE"), theme->TextSmall.font, theme->TextSmall.color, ALIGN_CENTER);
 	mHeaderGrid->setEntry(mTitle, Vector2i(0, 1), false, true);
 	mHeaderGrid->setEntry(mSubtitle, Vector2i(0, 3), false, true);
 
@@ -195,6 +195,8 @@ void GuiBatoceraStore::loadList(bool updatePackageList, bool restoreIndex)
 		{
 			auto it = std::find(gps.begin(), gps.end(), "FREE GAMES");
 			if (it != gps.end()) std::rotate(gps.begin(), it, it + 1);
+			auto decorations = std::find(gps.begin(), gps.end(), "DECORATIONS");
+			if (decorations != gps.end()) std::rotate(decorations, decorations + 1, gps.end());
 		}
 		for (auto group : gps)
 			mTabs->addTab(group);
@@ -322,6 +324,17 @@ void GuiBatoceraStore::processPackage(PacmanPackage package)
 {	
 	if (package.name.empty())
 		return;
+
+	// Decoration catalog is informational until distribution permission is confirmed.
+	if (RetroPieRuncommand::enabled() && package.repository == "DECORATIONS")
+	{
+		mWindow->pushGui(new GuiMsgBox(mWindow,
+			package.description + "\n" + (package.isInstalled() ? _("INSTALLED") : _("NOT INSTALLED")) +
+			"\n" + package.retropieFlags + "\n" +
+			"License unverified. Automatic download disabled.",
+			_("OK"), nullptr));
+		return;
+	}
 
 	// Keep unavailable entries inspectable without queueing a failed install.
 	if (RetroPieRuncommand::enabled() && package.retropieAvailability == 0)
@@ -457,7 +470,8 @@ GuiBatoceraStoreEntry::GuiBatoceraStoreEntry(Window* window, PacmanPackage& entr
 	mImage->setHorizontalAlignment(Alignment::ALIGN_CENTER);
 	mImage->setVerticalAlignment(Alignment::ALIGN_TOP);
 	mImage->setFont(theme->Text.font);
-	mImage->setText(entry.retropieAvailability == 0 ? _U("\uF071") :
+	mImage->setText(entry.repository == "DECORATIONS" && !isInstalled ? _U("\uF05A") :
+		entry.retropieAvailability == 0 ? _U("\uF071") :
 		(isInstalled ? _U("\uF058") : _U("\uF019")));
 	mImage->setSize(theme->Text.font->getLetterHeight() * 1.5f, 0);
 
@@ -480,7 +494,10 @@ GuiBatoceraStoreEntry::GuiBatoceraStoreEntry(Window* window, PacmanPackage& entr
 			"\r\n" + _U("  \uf007  ") + entry.packager;
 	}
 
-	if (!entry.repository.empty() && entry.repository != "batocera")
+	if (entry.repository == "DECORATIONS")
+		details = (isInstalled ? _("INSTALLED") : _("NOT INSTALLED")) + std::string(" · ") + entry.packager;
+
+	if (!entry.repository.empty() && entry.repository != "batocera" && entry.repository != "DECORATIONS")
 		details = details + _U("  \uf114  ") + entry.repository;
 
 	if (entry.installed_size > 0)
