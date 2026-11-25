@@ -497,7 +497,11 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 				quoted += ch == '\'' ? "'\\''" : std::string(1, ch);
 			return quoted + "'";
 		};
-		const std::string decoration = SystemConf::getInstance()->get(system->getName() + ".bezel");
+		std::string decoration = SystemConf::getInstance()->get(gameToUpdate->getConfigurationName() + ".bezel");
+		if (decoration.empty() || decoration == "auto")
+			decoration = SystemConf::getInstance()->get(system->getName() + ".bezel");
+		if (decoration.empty() || decoration == "auto")
+			decoration = SystemConf::getInstance()->get("global.bezel");
 		const std::string decorationRoot = Paths::getUserDecorationsPath();
 		const std::string runcommand =
 			std::string("env TARAVE_DECORATION=") + quoteDecorationEnv(decoration) +
