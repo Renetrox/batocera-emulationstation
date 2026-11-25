@@ -82,6 +82,7 @@ private:
 
         static std::shared_ptr<OptionListComponent<std::string>> createRatioOptionList(Window *window, std::string configname);
         static std::shared_ptr<OptionListComponent<std::string>> createVideoResolutionModeOptionList(Window *window, std::string configname, std::string configoptname = "videomode", const std::string output = "");
+	static void addRetroPieDecorationSelector(Window* window, GuiSettings* settings, SystemData* system, const std::string& decorationKey);
 	static void popRetroPieEmulatorSettings(Window* window, SystemData* system, FileData* game);
 	static void popSpecificConfigurationGui(Window* mWindow, std::string title, std::string configName, SystemData *systemData, FileData* fileData, bool selectCoreLine = false);
 
