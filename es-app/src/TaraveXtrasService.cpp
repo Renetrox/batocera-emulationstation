@@ -464,6 +464,28 @@ std::vector<PacmanPackage> list() {
     }
     const auto ports = modules();
     out.insert(out.end(), ports.begin(), ports.end());
+    // External catalog references only. No artwork redistribution or downloads
+    // until the upstream rights and license are established.
+    std::vector<std::string> decorations = {"default", "default_glazed"};
+    for (int i = 1; i <= 20; ++i)
+        decorations.push_back(std::string("ambiance_") + (i < 10 ? "0" : "") + std::to_string(i));
+    for (const char* name : {"arcade_01", "arcade_02", "arcade_vertical_01",
+                             "arcade_vertical_02", "arcade_vertical_default", "atomiswave_naomi_vertical"})
+        decorations.push_back(name);
+    for (const auto& name : decorations) {
+        PacmanPackage p;
+        p.name = "decoration:" + name;
+        p.description = name;
+        p.repository = "DECORATIONS";
+        p.group = name.find("vertical") != std::string::npos ? "VERTICAL" : "LANDSCAPE";
+        p.packager = "kaylh / RetroArch-Bezels (source)";
+        p.available_version = "License unverified";
+        p.arch = "any";
+        p.status = "available";
+        p.retropieAvailability = 0;
+        p.retropieFlags = "External source: https://github.com/kaylh/RetroArch-Bezels ; license unverified; download disabled";
+        out.push_back(p);
+    }
     return out;
 }
 std::pair<std::string, int> install(const std::string& id,
