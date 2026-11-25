@@ -4587,7 +4587,7 @@ void GuiMenu::createDecorationItemTemplate(Window* window, std::vector<Decoratio
 void GuiMenu::addRetroPieDecorationSelector(Window* window, GuiSettings* settings, SystemData* system, const std::string& decorationKey)
 {
 		const auto sets = getDecorationsSets(system);
-		if (!sets.empty())
+		if (RetroPieRuncommand::enabled() || !sets.empty())
 		{
 			const std::string stored = SystemConf::getInstance()->get(decorationKey);
 			auto decoration = std::make_shared<OptionListComponent<std::string>>(window, _("DECORATION SET"), false);
@@ -5280,6 +5280,38 @@ std::vector<DecorationSetInfo> GuiMenu::getDecorationsSets(SystemData* system)
 						info.imageUrl = img;
 				}
 
+				if (RetroPieRuncommand::enabled())
+				{
+					if (info.name.empty() || info.name[0] == '.') continue;
+					auto pair = [](const std::string& stem) {
+						return Utils::FileSystem::isRegularFile(stem + ".png") &&
+							Utils::FileSystem::isRegularFile(stem + ".info");
+					};
+					if (system != nullptr)
+					{
+						const auto n = system->getName();
+						const auto specific = folder + "/systems/" + n;
+						if (pair(specific)) info.imageUrl = specific + ".png";
+						else
+						{
+							const std::vector<std::string> arcade = {"arcade","mame","mame-libretro","fba","fbneo","neogeo"};
+							const std::vector<std::string> console = {"nes","snes","n64","psx","mastersystem","megadrive","segacd","sega32x","3do","saturn","pcengine","pcenginecd","dreamcast"};
+							const bool isArcade = std::find(arcade.begin(), arcade.end(), n) != arcade.end();
+							const bool isConsole = std::find(console.begin(), console.end(), n) != console.end();
+							if (info.name.find("vertical") != std::string::npos ||
+								(!isArcade && (!isConsole || Utils::String::startsWith(info.name, "arcade_"))) ||
+								!pair(folder + "/default")) continue;
+							info.imageUrl = folder + "/default.png";
+						}
+					}
+					else if (!pair(folder + "/default"))
+					{
+						for (const auto& file : Utils::FileSystem::getDirContent(folder + "/systems"))
+							if (file.size() > 4 && file.substr(file.size()-4) == ".png" &&
+								pair(file.substr(0,file.size()-4))) { info.imageUrl = file; break; }
+						if (info.imageUrl.empty()) continue;
+					}
+				}
 				sets.push_back(info);
 			}
 		}
