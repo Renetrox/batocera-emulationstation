@@ -36,6 +36,24 @@ def geometry(info, width, height):
     x, y = round(left*width/w), round(top*height/h)
     return x, y, round((w-right)*width/w)-x, round((h-bottom)*height/h)-y
 
+def decoration_pair(folder, system):
+    """Prefer a system-specific pair; allow generic frames only for their intended class."""
+    specific = (folder / "systems" / (system+".png"), folder / "systems" / (system+".info"))
+    if all(p.is_file() for p in specific):
+        return specific
+    name = folder.name
+    # Vertical artwork needs per-game orientation detection, not yet available.
+    if "vertical" in name:
+        return None
+    if name.startswith("arcade_") and system not in ("arcade", "mame", "mame-libretro", "fba", "fbneo", "neogeo"):
+        return None
+    # Generic ambiance frames target conventional landscape 4:3 games.
+    # Do not stretch handhelds, dual-screen systems or widescreen consoles.
+    if system not in ("arcade", "mame", "mame-libretro", "fba", "fbneo", "neogeo", "nes", "snes", "n64", "psx", "mastersystem", "megadrive", "segacd", "sega32x", "3do", "saturn", "pcengine", "pcenginecd", "dreamcast"):
+        return None
+    generic = (folder / "default.png", folder / "default.info")
+    return generic if all(p.is_file() for p in generic) else None
+
 def apply(system, emulator, rom, command, path=Path("/dev/shm/retroarch.cfg")):
     pack = os.environ.get("TARAVE_DECORATION", "")
     root = os.environ.get("TARAVE_DECORATION_ROOT", "")
@@ -49,10 +67,11 @@ def apply(system, emulator, rom, command, path=Path("/dev/shm/retroarch.cfg")):
         return
     if not path.is_file() or path.is_symlink():
         return
-    folder = Path(root) / pack / "systems"
-    png, info = folder / (system+".png"), folder / (system+".info")
-    if not png.is_file() or not info.is_file():
+    pair = decoration_pair(Path(root) / pack, system)
+    if pair is None:
+        log("no compatible decoration for " + system)
         return
+    png, info = pair
     # Explicit ROM configuration takes precedence.
     if Path(rom+".cfg").is_file():
         log("skipping ROM with custom configuration")
