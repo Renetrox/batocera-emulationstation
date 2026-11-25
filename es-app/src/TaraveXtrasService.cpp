@@ -476,14 +476,42 @@ std::vector<PacmanPackage> list() {
         PacmanPackage p;
         p.name = "decoration:" + name;
         p.description = name;
+        bool capitalize = true;
+        for (char& c : p.description) {
+            if (c == '_') { c = ' '; capitalize = true; }
+            else if (capitalize) { c = static_cast<char>(std::toupper(static_cast<unsigned char>(c))); capitalize = false; }
+        }
         p.repository = "DECORATIONS";
         p.group = name.find("vertical") != std::string::npos ? "VERTICAL" : "LANDSCAPE";
-        p.packager = "kaylh / RetroArch-Bezels (source)";
-        p.available_version = "License unverified";
+        p.packager = "kaylh / RetroArch-Bezels";
         p.arch = "any";
-        p.status = "available";
-        p.retropieAvailability = 0;
-        p.retropieFlags = "External source: https://github.com/kaylh/RetroArch-Bezels ; license unverified; download disabled";
+        bool installed = false;
+        for (const auto& root : {Paths::getUserDecorationsPath(), Paths::getDecorationsPath()}) {
+            if (root.empty()) continue;
+            const auto folder = root + "/" + name;
+            const auto validPair = [](const std::string& stem) {
+                return Utils::FileSystem::isRegularFile(stem + ".png") &&
+                       Utils::FileSystem::isRegularFile(stem + ".info");
+            };
+            if (validPair(folder + "/default")) {
+                installed = true;
+                p.preview_url = folder + "/default.png";
+                break;
+            }
+            for (const auto& file : Utils::FileSystem::getDirContent(folder + "/systems")) {
+                if (file.size() > 4 && file.substr(file.size()-4) == ".png" &&
+                    validPair(file.substr(0,file.size()-4))) {
+                    installed = true;
+                    p.preview_url = file;
+                    break;
+                }
+            }
+            if (installed) break;
+        }
+        p.status = installed ? "installed" : "available";
+        p.available_version = installed ? "Local package" : "External source";
+        p.retropieAvailability = -1; // License status is not platform compatibility.
+        p.retropieFlags = "https://github.com/kaylh/RetroArch-Bezels/tree/master/" + name;
         out.push_back(p);
     }
     return out;
