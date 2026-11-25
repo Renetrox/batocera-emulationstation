@@ -199,7 +199,7 @@ void GuiBatoceraStore::loadList(bool updatePackageList, bool restoreIndex)
 			if (decorations != gps.end()) std::rotate(decorations, decorations + 1, gps.end());
 		}
 		for (auto group : gps)
-			mTabs->addTab(group);
+			mTabs->addTab(RetroPieRuncommand::enabled() ? _(group.c_str()) : group, group);
 
 		mTabFilter = gps[0];
 
