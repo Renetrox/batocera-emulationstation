@@ -330,11 +330,17 @@ void GuiBatoceraStore::processPackage(PacmanPackage package)
 	{
 		const std::string details = package.description + "\n" + package.retropieFlags +
 			"\n" + _("INSTALLED") + ": " + (package.isInstalled() ? _("YES") : _("NO"));
-		if (package.isInstalled())
+		if (package.isInstalled() && package.available_version == "Tarave managed")
+			mWindow->pushGui(new GuiMsgBox(mWindow, details + "\n" + _("REMOVE") + "?",
+				_("REMOVE"), [this, package] {
+					ContentInstaller::Enqueue(mWindow, ContentInstaller::CONTENT_STORE_UNINSTALL, package.name);
+					mReloadList = 2;
+				}, _("CANCEL"), nullptr));
+		else if (package.isInstalled())
 			mWindow->pushGui(new GuiMsgBox(mWindow, details, _("OK"), nullptr));
 		else
 			mWindow->pushGui(new GuiMsgBox(mWindow, details +
-				"\nLicense unverified. Download directly from upstream only if you have permission.",
+				"\n" + _("License unverified. Download directly from upstream only if you have permission."),
 				_("INSTALL"), [this, package] {
 					ContentInstaller::Enqueue(mWindow, ContentInstaller::CONTENT_STORE_INSTALL, package.name);
 					mReloadList = 2;
