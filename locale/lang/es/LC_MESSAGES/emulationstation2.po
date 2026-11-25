@@ -3918,3 +3918,18 @@ msgstr "Los ajustes de sistema, núcleo o juego pueden tener prioridad"
 #: es-app/src/guis/GuiRetroPieAchievementsSettings.h
 msgid "RETROARCH ACHIEVEMENT SETTINGS SAVED. RELOAD THE GAME LIST TO UPDATE THEME ICONS."
 msgstr "Ajustes de logros guardados. Recarga la lista de juegos para actualizar los iconos del tema."
+
+msgid "INSTALLED"
+msgstr "INSTALADO"
+
+msgid "NOT INSTALLED"
+msgstr "NO INSTALADO"
+
+msgid "FREE GAMES"
+msgstr "JUEGOS GRATUITOS"
+
+msgid "PORTS"
+msgstr "PORTS"
+
+msgid "License unverified. Download directly from upstream only if you have permission."
+msgstr "Licencia no verificada. Descarga desde el repositorio original únicamente si tienes permiso."
