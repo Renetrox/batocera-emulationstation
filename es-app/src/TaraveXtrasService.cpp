@@ -508,6 +508,13 @@ std::vector<PacmanPackage> list() {
             }
             if (installed) break;
         }
+        // Preview only: reference a single upstream PNG, never install a package.
+        // Pin the verified catalog revision; local artwork always wins.
+        if (p.preview_url.empty()) {
+            const std::string preview = (name == "default" || name == "default_glazed")
+                ? "systems/gba.png" : "default.png";
+            p.preview_url = "https://raw.githubusercontent.com/kaylh/RetroArch-Bezels/c230214c8d93f2b907c8f2eb808e8cfe60f35df0/" + name + "/" + preview;
+        }
         p.status = installed ? "installed" : "available";
         p.available_version = installed ? "Local package" : "External source";
         p.retropieAvailability = -1; // License status is not platform compatibility.
