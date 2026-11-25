@@ -4616,6 +4616,32 @@ void GuiMenu::popRetroPieEmulatorSettings(Window* window, SystemData* system, Fi
 		if (!saved)
 			window->pushGui(new GuiMsgBox(window, _("COULD NOT SAVE RETROPIE EMULATOR SETTINGS"), _("OK")));
 	});
+	// RetroPie test: reuse the native decoration preview without changing
+	// emulator configuration until a launch backend is available.
+	if (!perGame)
+	{
+		const auto sets = getDecorationsSets(system);
+		if (!sets.empty())
+		{
+			const std::string decorationKey = systemName + ".bezel";
+			const std::string stored = SystemConf::getInstance()->get(decorationKey);
+			auto decoration = std::make_shared<OptionListComponent<std::string>>(window, _("DECORATION SET"), false);
+			decoration->setRowTemplate([window, sets](std::string data, ComponentListRow& row) {
+				createDecorationItemTemplate(window, sets, data, row);
+			});
+			decoration->add(_("AUTO"), "", stored.empty() || stored == "auto");
+			decoration->add(_("NONE"), "none", stored == "none");
+			for (const auto& set : sets)
+				decoration->add(set.name, set.name, stored == set.name);
+			if (!decoration->hasSelection())
+				decoration->selectFirstItem();
+			settings->addWithDescription(_("DECORATION SET"), "Experimental: preview and selection only; not applied in RetroArch yet.", decoration);
+			settings->addSaveFunc([decoration, decorationKey] {
+				if (SystemConf::getInstance()->set(decorationKey, decoration->getSelected()))
+					SystemConf::getInstance()->saveSystemConf();
+			});
+		}
+	}
 	window->pushGui(settings);
 }
 
