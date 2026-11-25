@@ -386,7 +386,7 @@ std::pair<std::string, int> portCommandWithProgress(
 
 // Download directly from the pinned upstream, without hosting copies.
 // Existing packages are never overwritten or removed by this experimental installer.
-std::pair<std::string, int> installDecoration(const std::string& name,
+std::pair<std::string, int> installDecoration(const std::string& name, bool uninstall,
     const std::function<void(const std::string)>& notify) {
     static const std::map<std::string, std::vector<std::string>> files = {
         {"ambiance_01", {"default.info", "default.png"}},
@@ -424,6 +424,22 @@ std::pair<std::string, int> installDecoration(const std::string& name,
     if (root.empty() || !Utils::FileSystem::isDirectory(root))
         return {"Configure a writable decorations directory first.", 1};
     const auto dst = root + "/" + name;
+    if (uninstall) {
+        // No recursive deletion: refuse modified, missing or additional files.
+        std::string script = "set -eu; cd " + quote(dst) +
+            "; test ! -L .tarave-managed; test -f .tarave-managed; ";
+        script += "test \"$(find . -type f | wc -l)\" -eq " + std::to_string(it->second.size() + 1) +
+            "; test -z \"$(find . -type l -print -quit)\"; ";
+        script += "test \"$(wc -l < .tarave-managed)\" -eq " + std::to_string(it->second.size()) + "; ";
+        for (const auto& file : it->second)
+            script += "test -f " + quote(file) + "; grep -Fq -- " + quote("  " + file) + " .tarave-managed; ";
+        script += "sha256sum -c --strict .tarave-managed; ";
+        for (const auto& file : it->second) script += "rm -- " + quote(file) + "; ";
+        script += "rm -- .tarave-managed; rmdir systems; cd ..; rmdir -- " + quote(name);
+        const auto log = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";
+        if (notify) notify("Removing " + name);
+        return portCommandWithProgress("bash -c " + quote("set -eu; test ! -L " + quote(dst) + "; " + script), log, notify);
+    }
     if (Utils::FileSystem::exists(dst)) return {"Package already exists; not overwritten.", 1};
     if (notify) notify("Downloading " + name);
     const std::string base = "https://raw.githubusercontent.com/kaylh/RetroArch-Bezels/c230214c8d93f2b907c8f2eb808e8cfe60f35df0/" + name + "/";
@@ -434,6 +450,10 @@ std::pair<std::string, int> installDecoration(const std::string& name,
         script += "curl --fail --location --proto '=https' --connect-timeout 15 --max-time 180 --silent --show-error -o \"$tmp/" + file + "\" " + quote(base + file) + "; ";
         script += "test -s \"$tmp/" + file + "\"; ";
     }
+    // Record only files installed by us, including their original checksums.
+    script += "(cd \"$tmp\"; sha256sum ";
+    for (const auto& file : it->second) script += quote(file) + " ";
+    script += "> .tarave-managed); ";
     // A competing installer must not replace an existing package.
     script += "test ! -e \"$dst\"; mv -T -n -- \"$tmp\" \"$dst\"; test ! -d \"$tmp\"";
     const auto log = Paths::getUserEmulationStationPath() + "/xtras/xtras.log";
@@ -444,8 +464,7 @@ std::pair<std::string, int> installDecoration(const std::string& name,
 std::pair<std::string, int> execute(const std::string& id, bool uninstall,
                                     const std::function<void(const std::string)>& notify) {
     if (id.compare(0, 11, "decoration:") == 0) {
-        if (uninstall) return {"Local decoration removal is not enabled yet.", 1};
-        return installDecoration(id.substr(11), notify);
+        return installDecoration(id.substr(11), uninstall, notify);
     }
     const auto root = setupRoot();
     if (id.compare(0, 5, "game:") == 0) {
@@ -577,7 +596,7 @@ std::vector<PacmanPackage> list() {
             p.preview_url = "https://raw.githubusercontent.com/kaylh/RetroArch-Bezels/c230214c8d93f2b907c8f2eb808e8cfe60f35df0/" + name + "/" + preview;
         }
         p.status = installed ? "installed" : "available";
-        p.available_version = installed ? "Local package" : "External source";
+        p.available_version = installed ? (Utils::FileSystem::isRegularFile(Paths::getUserDecorationsPath() + "/" + name + "/.tarave-managed") ? "Tarave managed" : "Local package") : "External source";
         p.retropieAvailability = -1; // License status is not platform compatibility.
         p.retropieFlags = "https://github.com/kaylh/RetroArch-Bezels/tree/master/" + name;
         out.push_back(p);
