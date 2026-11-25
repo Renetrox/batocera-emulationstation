@@ -490,8 +490,19 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 	if (RetroPieRuncommand::handlesSystem(system->getName()))
 	{
 		LOG(LogInfo) << "Tarave: launching " << system->getName() << " with RetroPie runcommand";
+		auto quoteDecorationEnv = [](const std::string& value)
+		{
+			std::string quoted = "'";
+			for (char ch : value)
+				quoted += ch == '\'' ? "'\\''" : std::string(1, ch);
+			return quoted + "'";
+		};
+		const std::string decoration = SystemConf::getInstance()->get(system->getName() + ".bezel");
+		const std::string decorationRoot = Paths::getUserDecorationsPath();
 		const std::string runcommand =
-			std::string("/opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ ") +
+			std::string("env TARAVE_DECORATION=") + quoteDecorationEnv(decoration) +
+			" TARAVE_DECORATION_ROOT=" + quoteDecorationEnv(decorationRoot) +
+			" /opt/retropie/supplementary/runcommand/runcommand.sh 0 _SYS_ " +
 			system->getName() + " " + Utils::FileSystem::getEscapedPath(gameToUpdate->getPath());
 
 #if !defined(BATOCERA) && !defined(RETROBAT)
