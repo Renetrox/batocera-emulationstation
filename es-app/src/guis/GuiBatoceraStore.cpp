@@ -325,14 +325,20 @@ void GuiBatoceraStore::processPackage(PacmanPackage package)
 	if (package.name.empty())
 		return;
 
-	// Decoration catalog is informational until distribution permission is confirmed.
+	// Direct upstream download is opt-in; never replace or remove local artwork.
 	if (RetroPieRuncommand::enabled() && package.repository == "DECORATIONS")
 	{
-		mWindow->pushGui(new GuiMsgBox(mWindow,
-			package.description + "\n" + (package.isInstalled() ? _("INSTALLED") : _("NOT INSTALLED")) +
-			"\n" + package.retropieFlags + "\n" +
-			"License unverified. Automatic download disabled.",
-			_("OK"), nullptr));
+		const std::string details = package.description + "\n" + package.retropieFlags +
+			"\n" + _("INSTALLED") + ": " + (package.isInstalled() ? _("YES") : _("NO"));
+		if (package.isInstalled())
+			mWindow->pushGui(new GuiMsgBox(mWindow, details, _("OK"), nullptr));
+		else
+			mWindow->pushGui(new GuiMsgBox(mWindow, details +
+				"\nLicense unverified. Download directly from upstream only if you have permission.",
+				_("INSTALL"), [this, package] {
+					ContentInstaller::Enqueue(mWindow, ContentInstaller::CONTENT_STORE_INSTALL, package.name);
+					mReloadList = 2;
+				}, _("CANCEL"), nullptr));
 		return;
 	}
 
