@@ -497,12 +497,25 @@ std::string FileData::getlaunchCommand(LaunchGameOptions& options, bool includeC
 				quoted += ch == '\'' ? "'\\''" : std::string(1, ch);
 			return quoted + "'";
 		};
-		std::string decoration = SystemConf::getInstance()->get(gameToUpdate->getConfigurationName() + ".bezel");
-		if (decoration.empty() || decoration == "auto")
-			decoration = SystemConf::getInstance()->get(system->getName() + ".bezel");
-		if (decoration.empty() || decoration == "auto")
-			decoration = SystemConf::getInstance()->get("global.bezel");
 		const std::string decorationRoot = Paths::getUserDecorationsPath();
+		// Ignore orphaned selections without destroying the user's preferences.
+		// Explicit NONE always stops inheritance.
+		std::string decoration;
+		for (const auto& key : {gameToUpdate->getConfigurationName() + ".bezel",
+			system->getName() + ".bezel", std::string("global.bezel")})
+		{
+			const auto value = SystemConf::getInstance()->get(key);
+			if (value.empty() || value == "auto") continue;
+			if (value == "none") { decoration = value; break; }
+			if (value == "." || value == ".." || value.find_first_not_of(
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_. -") != std::string::npos)
+				continue;
+			if (!decorationRoot.empty() && Utils::FileSystem::isDirectory(decorationRoot + "/" + value))
+			{
+				decoration = value;
+				break;
+			}
+		}
 		const std::string runcommand =
 			std::string("env TARAVE_DECORATION=") + quoteDecorationEnv(decoration) +
 			" TARAVE_DECORATION_ROOT=" + quoteDecorationEnv(decorationRoot) +
